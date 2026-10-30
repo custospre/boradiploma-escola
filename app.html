@@ -5250,6 +5250,16 @@ if ('serviceWorker' in navigator) {
 .escenvio .escbtn{height:42px}
 .escmsgprev{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:.92rem;max-height:160px;overflow:auto}
 .escmopts{display:flex;flex-direction:column;gap:6px;width:100%}
+/* simulado da semana */
+.escsim p{margin-top:0}
+.escqn{font-family:var(--font-head);font-weight:700;color:var(--accent);margin-bottom:4px}
+.escalt{display:block;width:100%;text-align:left;margin:6px 0 0;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg);font:inherit;font-size:.95rem;line-height:1.4;cursor:pointer}
+.escalt.sel{border-color:var(--accent);background:var(--accent-soft);font-weight:600}
+.escalt.ok{border-color:#2e7d32;background:#e8f5e9;color:#1b5e20}
+.escalt.err{border-color:#c62828;background:#fdecea;color:#b71c1c}
+.escalt:disabled{cursor:default;opacity:1}
+.escexp{font-size:.85rem;color:var(--muted);margin:3px 4px 2px 14px;padding-left:8px;border-left:3px solid var(--line)}
+.escexp.ok{border-left-color:#2e7d32}
 /* pais: provas e prazos do filho */
 .escpz{display:flex;gap:10px;align-items:baseline;padding:6px 0;border-top:1px solid var(--line);font-size:.93rem}
 .escpzc .escpz:first-child{border-top:0}
@@ -5289,6 +5299,7 @@ if ('serviceWorker' in navigator) {
   var grupos=[], denuncias=[], chat=null, chatTimer=null, exemploOk={}, pendChat=null;
   var avisos=[], avisosEsc=[], avAb=null, avisoTimer=null, pendAviso=null;
   var mats=[], matAb=null, pendMat=null;
+  var sims=[], simAb=null;
   var PAPEL={aluno:'Aluno(a)',responsavel:'Responsável',professor:'Professor(a)',coordenacao:'Coordenação'};
   var ICO={aluno:'🎒',responsavel:'👨‍👩‍👧',professor:'🧑‍🏫',coordenacao:'🏫'};
   function E(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
@@ -5305,8 +5316,8 @@ if ('serviceWorker' in navigator) {
     if(!box) return Promise.resolve();
     if(!logado()){ box.innerHTML='<div class="escvazio">Entre na sua conta para ver a sua escola.</div>'; return Promise.resolve(); }
     if(!dados.length) box.innerHTML='<div class="escvazio">Carregando…</div>';
-    return Promise.all([rpc('escola_painel'), rpc('chat_grupos').catch(function(){ return []; }), rpc('avisos_meus').catch(function(){ return []; }), rpc('materiais_lista').catch(function(){ return null; })]).then(function(r){
-      dados=Array.isArray(r[0])?r[0]:[]; grupos=Array.isArray(r[1])?r[1]:[]; avisos=Array.isArray(r[2])?r[2]:[]; if(Array.isArray(r[3])) guardaMats(r[3]); if(sel>=dados.length) sel=0;
+    return Promise.all([rpc('escola_painel'), rpc('chat_grupos').catch(function(){ return []; }), rpc('avisos_meus').catch(function(){ return []; }), rpc('materiais_lista').catch(function(){ return null; }), rpc('simulados_meus').catch(function(){ return []; })]).then(function(r){
+      dados=Array.isArray(r[0])?r[0]:[]; grupos=Array.isArray(r[1])?r[1]:[]; avisos=Array.isArray(r[2])?r[2]:[]; if(Array.isArray(r[3])) guardaMats(r[3]); sims=Array.isArray(r[4])?r[4]:[]; if(sel>=dados.length) sel=0;
       var m=atual(); denuncias=[]; avisosEsc=[]; filhoRes={};
       if(!m||m.papel!=='coordenacao') return;
       if(m.escola.modelo&&!exemploOk[m.escola.id]){ // escola de exemplo: põe umas conversas para mostrar (só se o grupo estiver vazio)
@@ -5411,7 +5422,7 @@ if ('serviceWorker' in navigator) {
     var t=m.turma, h='<div class="esccard"><h3>🎒 Minha turma: '+(t?E(t.nome)+(t.turno?' · '+E(t.turno):''):'ainda sem turma')+'</h3>';
     h+='<p class="escdim">Colegas ('+(m.colegas||[]).length+')</p>'+tags(m.colegas);
     h+='<p class="escdim" style="margin-top:10px">Professores</p><ul class="esclist">'+((m.professores||[]).map(function(p){ return '<li>'+E(p.nome)+(p.materia?' <span class="escdim">· '+E(p.materia)+'</span>':'')+'</li>'; }).join('')||'<li class="escdim">nenhum ainda</li>')+'</ul></div>';
-    return h+avisosHTML(m)+matsHTML(m)+gruposHTML(m,'turma')+embreve([['📝 Simulados','Simulados feitos pela IA a partir do material dos professores, com a explicação de cada resposta.']]);
+    return h+avisosHTML(m)+simHTML(m)+matsHTML(m)+gruposHTML(m,'turma');
   }
   // ---------- pais: provas, trabalhos e agenda da escola do filho (o que ele anota no app dele) ----------
   var filhoRes={};
@@ -5444,14 +5455,14 @@ if ('serviceWorker' in navigator) {
     var f=m.filho||{}, t=f.turma, pn=E(primeiro(f.nome));
     var h='<div class="esccard"><h3>🎒 '+E(f.nome||'')+'</h3><p>'+(t?'Turma <b>'+E(t.nome)+'</b>'+(t.turno?' · '+E(t.turno):''):'Ainda sem turma')+(m.parentesco?' · você: <b>'+E(m.parentesco)+'</b>':'')+'</p>'
       +'<p class="escdim">'+(f.entrou?'✅ '+pn+' já usa o app.':'⏳ '+pn+' ainda não entrou no app.')+'</p></div>';
-    var it=[['📊 Notas dos simulados','Como '+pn+' está indo e em quais assuntos precisa de reforço.']];
+    var it=[];
     h+=prazosFilhoHTML(m);
     h+=avisosHTML(m);
     if(m.pais_turma){
       h+='<div class="esccard"><h3>👨‍👩‍👧 Pais da turma</h3><ul class="esclist">'+(m.pais_turma.map(function(p){ return '<li>'+E(p.nome)+' <span class="escdim">· '+E(p.parentesco||'responsável')+' de '+E(primeiro(p.filho))+'</span></li>'; }).join('')||'<li class="escdim">nenhum outro ainda</li>')+'</ul></div>';
       h+=gruposHTML(m,'pais');
     }
-    return h+embreve(it);
+    return h+notasFilhoHTML(m)+(it.length?embreve(it):'');
   }
   function telaProf(m){
     var h='';
@@ -5521,8 +5532,93 @@ if ('serviceWorker' in navigator) {
   // a conversa ocupa o resto da tela, deixando livre embaixo o lugar dos botões flutuantes (Página anterior e microfone)
   function ajusta(){ var c=box&&box.querySelector('.escchat'); if(!c) return; var top=c.getBoundingClientRect().top+(window.pageYOffset||0); c.style.height=Math.max(240,window.innerHeight-top-84)+'px'; var en=c.querySelector('.escenvio'); if(en&&en.getBoundingClientRect().bottom>window.innerHeight-70) window.scrollBy(0,en.getBoundingClientRect().bottom-window.innerHeight+80); }
   window.addEventListener('resize',function(){ if(chat) ajusta(); });
-  function pararTudo(){ chat=null; clearInterval(chatTimer); avAb=null; clearInterval(avisoTimer); matAb=null; }
-  function ocupado(){ return !!(chat||avAb||matAb); }   // conversa ou aviso aberto: não redesenhar a tela por baixo
+  function pararTudo(){ chat=null; clearInterval(chatTimer); avAb=null; clearInterval(avisoTimer); matAb=null; simAb=null; }
+  function ocupado(){ return !!(chat||avAb||matAb||simAb); }
+
+  // ---------- simulado da semana (feito pela IA: 5 questões, 5 alternativas, explicação de cada uma) ----------
+  var LETRA=['A','B','C','D','E'];
+  function segundaISO(){ var d=new Date(); d.setHours(12,0,0,0); d.setDate(d.getDate()-((d.getDay()+6)%7)); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  function materiasDoAluno(m){
+    var l=[]; function poe(n){ n=String(n||'').trim(); if(n&&!l.some(function(x){ return sem(x)===sem(n); })) l.push(n); }
+    (m.professores||[]).forEach(function(p){ poe(p.materia); });
+    mats.filter(function(x){ return x.escola_id===m.escola.id; }).forEach(function(x){ poe(x.materia); });
+    try{ (JSON.parse(localStorage.getItem('vademecum_subjects_v1')||'[]')||[]).forEach(function(s){ if(s&&s.kind!=='agenda') poe(s.name); }); }catch(_){}
+    return l.sort(function(a,b){ return a.localeCompare(b); });
+  }
+  function simHTML(m){
+    var meus=sims.filter(function(s){ return s.membro_id===m.membro_id; }), seg=segundaISO();
+    var esta=meus.filter(function(s){ return s.semana===seg; })[0], velhos=meus.filter(function(s){ return s!==esta; });
+    var h='<h2 class="esch2">📝 Simulado da semana</h2><div class="esccard escsim">';
+    if(!esta){
+      var ms=materiasDoAluno(m);
+      h+='<p>Toda semana você pode gerar <b>1 simulado</b> com <b>5 questões</b> no estilo ENEM, feito pela IA a partir do material dos professores e das suas anotações. Depois de responder, aparece a explicação de cada alternativa.</p>'
+        +campo('Matéria',(ms.length?'<select id="simMat">'+opts(ms.map(function(x){ return [x,x]; }).concat([['__outra','Outra…']]),ms[0])+'</select>':'')
+          +'<input id="simOutra" maxlength="60" placeholder="Escreva a matéria" autocomplete="off"'+(ms.length?' hidden':'')+'>')
+        +'<button type="button" class="escbtn" data-ea="simgerar">✨ Gerar meu simulado da semana</button><div id="simProg" class="escdim" style="margin-top:8px"></div>';
+    } else if(!esta.respondido){
+      h+='<p>Seu simulado de <b>'+E(esta.materia)+'</b> está pronto: '+esta.total+' questões.</p><button type="button" class="escbtn" data-ea="simabrir" data-id="'+esta.id+'">▶ Responder agora</button>';
+    } else {
+      h+='<p>✅ Você acertou <b>'+esta.acertos+' de '+esta.total+'</b> em <b>'+E(esta.materia)+'</b>. O próximo simulado libera na segunda-feira.</p><button type="button" class="escbtn2" data-ea="simabrir" data-id="'+esta.id+'">Ver a correção</button>';
+    }
+    h+='</div>';
+    if(velhos.length) h+='<div class="escgrupos">'+velhos.map(function(s){
+      return '<button type="button" class="escgrupo" data-ea="simabrir" data-id="'+s.id+'"><span class="escgi">📝</span><span class="escgt"><b>'+E(s.materia)+'</b><small>Semana de '+dmY(s.semana)+(s.respondido?' · acertou '+s.acertos+' de '+s.total:' · não respondido')+'</small></span></button>'; }).join('')+'</div>';
+    return h;
+  }
+  function gerarSimulado(){
+    var m=atual(), sm=box.querySelector('#simMat'), out=box.querySelector('#simOutra'), bt=box.querySelector('[data-ea="simgerar"]'), prog=box.querySelector('#simProg');
+    var mat=(sm&&sm.value!=='__outra')?sm.value:(out?out.value.trim():''); if(!mat){ aviso('Escolha a matéria'); return; }
+    if(!window.bdSb||!window.bdSb.functions){ aviso('Sem conexão com a nuvem.'); return; }
+    bt.disabled=true; prog.textContent='✨ A IA está preparando o seu simulado de '+mat+'… isso leva até 1 minuto.';
+    window.bdSb.functions.invoke('gerar-simulado',{body:{materia:mat}}).then(function(r){
+      if(r.error){ var c=r.error.context; return (c&&c.json?c.json().catch(function(){ return {}; }):Promise.resolve({})).then(function(j){ throw new Error((j&&j.erro)||'Não consegui gerar o simulado agora. Tente de novo mais tarde.'); }); }
+      return r.data;
+    }).then(function(d){ return carregar().then(function(){ if(d&&d.id) abrirSimulado(d.id); }); },
+      function(e){ bt.disabled=false; prog.textContent=''; aviso(e.message); });
+  }
+  function abrirSimulado(id){
+    var s=sims.filter(function(x){ return String(x.id)===String(id); })[0]; if(!s) return;
+    pararTudo(); simAb={s:s,resp:(s.respostas||[]).slice()};
+    desenharSimulado(); window.scrollTo({top:0});
+  }
+  function desenharSimulado(){
+    var s=simAb.s, feito=s.respondido, r=simAb.resp;
+    var h='<div class="escavw"><div class="escchead"><button type="button" class="escbtn2" data-ea="sair">← Voltar</button><div class="escctit"><b>📝 Simulado de '+E(s.materia)+'</b><small>Semana de '+dmY(s.semana)+(feito?' · você acertou '+s.acertos+' de '+s.total:'')+'</small></div></div>';
+    if(s.fontes&&s.fontes.length) h+='<p class="escdim" style="margin:0 0 6px">Feito a partir de: '+E(s.fontes.join(' · '))+'</p>';
+    (s.questoes||[]).forEach(function(q,i){
+      h+='<div class="esccard escq"><div class="escqn">Questão '+(i+1)+(q.assunto?' <span class="escdim">· '+E(q.assunto)+'</span>':'')+'</div><div class="esctxt">'+linkify(q.enunciado)+'</div>';
+      (q.alternativas||[]).forEach(function(a,k){
+        var cls='', marca='';
+        if(feito){ if(k===q.correta){ cls=' ok'; marca='✔ '; } else if(r[i]===k){ cls=' err'; marca='✖ '; } }
+        else if(r[i]===k) cls=' sel';
+        h+='<button type="button" class="escalt'+cls+'" data-ea="simalt" data-q="'+i+'" data-k="'+k+'"'+(feito?' disabled':'')+'><b>'+marca+LETRA[k]+')</b> '+E(a)+'</button>';
+        if(feito&&q.explicacoes&&q.explicacoes[k]) h+='<div class="escexp'+(k===q.correta?' ok':'')+'">'+E(q.explicacoes[k])+'</div>';
+      });
+      h+='</div>';
+    });
+    if(!feito){ var falta=(s.questoes||[]).filter(function(q,i){ return r[i]==null; }).length;
+      h+='<button type="button" class="escbtn escadd" data-ea="simcorrigir"'+(falta?' disabled':'')+'>✅ Corrigir'+(falta?' (faltam '+falta+')':'')+'</button>'; }
+    h+='</div>';
+    box.innerHTML=h;
+  }
+  function corrigirSimulado(){
+    var s=simAb.s, bt=box.querySelector('[data-ea="simcorrigir"]'); if(bt) bt.disabled=true;
+    rpc('simulado_responder',{p_id:s.id,p_respostas:simAb.resp}).then(function(d){
+      s.respondido=true; s.acertos=d.acertos; s.total=d.total; s.questoes=d.questoes; s.respostas=d.respostas;
+      desenharSimulado(); window.scrollTo({top:0}); aviso('Você acertou '+d.acertos+' de '+d.total+'!');
+    },function(e){ if(bt) bt.disabled=false; aviso(e.message); });
+  }
+  // pais: notas dos simulados do filho
+  function notasFilhoHTML(m){
+    var c=filhoRes[m.membro_id], pn=E(primeiro((m.filho||{}).nome)), l=(c&&c.simulados)||[];
+    var h='<h2 class="esch2">📊 Notas dos simulados de '+pn+'</h2>';
+    if(!c||c.carregando) return h+'<div class="escdim" style="padding:4px 2px">Carregando…</div>';
+    var feitos=l.filter(function(s){ return s.respondido; });
+    if(!l.length) return h+'<div class="escdim" style="padding:4px 2px">'+pn+' ainda não fez nenhum simulado. Toda semana dá para gerar um no app.</div>';
+    var tot=feitos.reduce(function(n,s){ return n+s.total; },0), ac=feitos.reduce(function(n,s){ return n+s.acertos; },0);
+    return h+'<div class="esccard escpzc">'+(tot?'<p style="margin-top:0">Média: <b>'+Math.round(ac*100/tot)+'%</b> de acertos em '+feitos.length+' simulado'+(feitos.length===1?'':'s')+'.</p>':'')
+      +l.map(function(s){ return '<div class="escpz"><span class="escpzd">'+dmY(s.semana)+'</span><span class="escpzt"><b>'+E(s.materia)+'</b></span><span class="escpzq">'+(s.respondido?s.acertos+' de '+s.total:'não respondido')+'</span></div>'; }).join('')+'</div>';
+  }   // conversa ou aviso aberto: não redesenhar a tela por baixo
   function sairChat(){ pararTudo(); desenhar(); carregar(); window.scrollTo({top:0}); }
 
   // ---------- avisos da escola ----------
@@ -5908,6 +6004,10 @@ if ('serviceWorker' in navigator) {
     if(a==='sair'){ sairChat(); return; }
     if(a==='aviso'){ abrirAviso(id,b.getAttribute('data-m')); return; }
     if(a==='mat'){ verMaterial(id); return; }
+    if(a==='simgerar'){ gerarSimulado(); return; }
+    if(a==='simabrir'){ abrirSimulado(id); return; }
+    if(a==='simalt'){ if(!simAb||simAb.s.respondido) return; simAb.resp[+b.getAttribute('data-q')]=+b.getAttribute('data-k'); var y=window.pageYOffset; desenharSimulado(); window.scrollTo(0,y); return; }
+    if(a==='simcorrigir'){ corrigirSimulado(); return; }
     if(a==='matnovo'){ formMaterial(b.getAttribute('data-t')); return; }
     if(a==='avenviar'){ enviarResposta(); return; }
     if(a==='novoaviso'){ formAviso(); return; }
@@ -5958,7 +6058,8 @@ if ('serviceWorker' in navigator) {
       function(er){ codPre=cv; aviso(er.message); if(window.bdAbrirEscola) window.bdAbrirEscola(); });
   })(0);
 
-  window.bdEscola={ abrir:function(el){ if(box!==el){ box=el; box.addEventListener('click',clique); } pararTudo(); if(dados.length) desenhar(); carregar(); } };
+  window.bdEscola={ abrir:function(el){ if(box!==el){ box=el; box.addEventListener('click',clique);
+    box.addEventListener('change',function(e){ if(e.target.id==='simMat'){ var o=box.querySelector('#simOutra'); if(o){ o.hidden=e.target.value!=='__outra'; if(!o.hidden) o.focus(); } } }); } pararTudo(); if(dados.length) desenhar(); carregar(); } };
   // tocar no aviso "📢 ..." abre direto o aviso
   window.bdAbrirAviso=function(t){ pendAviso=t; if(window.bdAbrirEscola) window.bdAbrirEscola(); };
   // árvore → matéria → "🏫 Material da escola"
