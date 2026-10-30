@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1f4e8c">
+<title>Entrando — BoraDiploma Escola</title>
+<meta property="og:title" content="BoraDiploma Escola — seu acesso">
+<meta property="og:description" content="Toque para entrar no BoraDiploma Escola.">
+<script>
+/* mesmas chaves do app do Escola (prefixo "esc:"), senao o login nao chega no app */
+try{ var P='esc:', S=Storage.prototype, g=S.getItem, st=S.setItem, r=S.removeItem;
+  S.getItem=function(k){ return g.call(this,P+k); }; S.setItem=function(k,v){ return st.call(this,P+k,v); }; S.removeItem=function(k){ return r.call(this,P+k); }; }catch(e){}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{--bg:#f5f3ee;--surface:#fffdf8;--fg:#1f1b16;--muted:#6b6459;--line:#e2ddd2;--accent:#1f4e8c}
+  @media (prefers-color-scheme:dark){:root{--bg:#17150f;--surface:#211e17;--fg:#ece7dc;--muted:#a79f90;--line:#352f25;--accent:#9cc0ef;color-scheme:dark}}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:24px}
+  .box{width:100%;max-width:360px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:30px 24px;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.12)}
+  h1{color:var(--accent);font-size:24px;margin:0 0 8px}
+  .bd-marca{display:flex;flex-direction:column;align-items:center;gap:4px;width:max-content;background:#fffdf8;border-radius:16px;padding:8px 12px 7px;box-shadow:0 3px 10px rgba(0,0,0,.10);box-sizing:border-box}
+  .bd-marca img{width:70px;height:70px;display:block}
+  .bd-nome{font-family:"Libre Franklin",system-ui,-apple-system,"Segoe UI",sans-serif;font-weight:800;font-size:17px;letter-spacing:-.3px;line-height:1;color:#1f1b16;white-space:nowrap}
+  .bd-nome b{color:#c9a24a;font-weight:800}
+  p{color:var(--muted);font-size:15px;line-height:1.5;margin:8px 0}
+  .spin{width:30px;height:30px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;margin:16px auto;animation:g 1s linear infinite}
+  @keyframes g{to{transform:rotate(360deg)}}
+  a.btn{display:inline-block;width:100%;padding:12px;font-size:16px;border:0;border-radius:10px;cursor:pointer;margin-top:14px;background:var(--accent);color:#fff;text-decoration:none}
+</style>
+<div class="box">
+  <div class="bd-marca" style="margin:0 auto 14px"><img src="icons/logo.png" alt=""><div class="bd-nome">Bora<b>Diploma</b></div><div style="font:700 13px system-ui;color:#1f4e8c;letter-spacing:.5px">Escola</div></div>
+  <div id="spin" class="spin"></div>
+  <p id="msg">Entrando…</p>
+  <div id="acts"></div>
+</div>
+<script>
+(function(){
+  var SB_URL = 'https://epumhsiqdxvcboisurvu.supabase.co';
+  var SB_KEY = 'sb_publishable_JW7iq8Kayqkp3OL--TCccg_aTBKOs_S';
+  var msg = document.getElementById('msg');
+  var spin = document.getElementById('spin');
+  var acts = document.getElementById('acts');
+  function stop(){ if(spin) spin.style.display='none'; }
+  function erro(txt){ stop(); msg.innerHTML = txt; acts.innerHTML = '<a class="btn" href="app.html">Ir para o app</a>'; }
+
+  var qs = new URLSearchParams(location.search);
+  var k = qs.get('k');   // link reutilizavel
+  var t = qs.get('t');   // link antigo (uso unico)
+  if(!k && !t){ erro('Link invalido. Peca um novo acesso ao responsavel. 🙏'); return; }
+
+  var sb; try{ sb = window.supabase.createClient(SB_URL, SB_KEY); }catch(e){}
+  if(!sb){ erro('Voce precisa de internet. Recarregue a pagina.'); return; }
+
+  function go(){ msg.textContent = 'Pronto! Abrindo o app…'; location.replace('app.html'); }
+  function verifyAndGo(hash, types, i){
+    if(i >= types.length){ erro('Esse link nao esta valido agora. Peca um novo acesso ao responsavel. 🙏'); return; }
+    sb.auth.verifyOtp({ token_hash: hash, type: types[i] }).then(function(r){
+      if(r && !r.error && r.data && (r.data.session || r.data.user)){ go(); }
+      else { verifyAndGo(hash, types, i+1); }
+    }).catch(function(){ verifyAndGo(hash, types, i+1); });
+  }
+
+  if(k){
+    // troca o token reutilizavel por um login fresco (feito no servidor)
+    sb.functions.invoke('entrar', { body: { k: k } }).then(function(r){
+      if(r && !r.error && r.data && r.data.ok && r.data.token_hash){
+        verifyAndGo(r.data.token_hash, ['magiclink','email'], 0);
+      } else {
+        erro('Esse link nao esta valido. Peca um novo acesso ao responsavel. 🙏');
+      }
+    }).catch(function(){ erro('Nao consegui entrar. Verifique a internet e tente de novo.'); });
+  } else {
+    verifyAndGo(t, ['magiclink','email'], 0);
+  }
+})();
+</script>
+</html>
