@@ -4330,7 +4330,15 @@ if ('serviceWorker' in navigator) {
   var pendingPerfil = null;
   var modo = false;
 
-  function showForm(){ loading.hidden = true; form.hidden = false; }
+  function showForm(){ loading.hidden = true; form.hidden = false; try{ if(localStorage.getItem('bd_convite') || /[?&]convite=/.test(location.search)) modoConvite(); }catch(e){} }
+  // chegou pelo link de convite da escola: nada de "pedir acesso", só entrar (o convite libera o acesso sozinho)
+  function modoConvite(){
+    var q = function(id){ return document.getElementById(id); }, sub = form.querySelector('.sub');
+    if(sub) sub.innerHTML = '🎟️ <b>Você recebeu um convite da escola.</b><br>Entre com a sua conta Google para continuar.';
+    ['gd-pedir-nome', 'gd-pedir-wa', 'gd-pedir-enviar', 'gd-btn-entrar-ja'].forEach(function(id){ if(q(id)) q(id).hidden = true; });
+    [].forEach.call(form.querySelectorAll('label[for="gd-pedir-nome"],label[for="gd-pedir-wa"]'), function(l){ l.hidden = true; });
+    if(q('gd-login-area')) q('gd-login-area').hidden = false;
+  }
   function setMsg(t, cls){ msg.textContent = t||''; msg.className = 'msg' + (cls?(' '+cls):''); }
   function cloudStatus(t){ if(!cloudEl) return; if(!t){ cloudEl.hidden = true; return; } cloudEl.hidden = false; cloudEl.textContent = t; }
 
