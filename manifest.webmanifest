@@ -1,0 +1,18 @@
+{
+  "name": "BoraDiploma Escola",
+  "short_name": "BoraDiploma",
+  "description": "O app do estudante: matérias, aulas, materiais, provas, trabalhos e agenda num só lugar.",
+  "lang": "pt-BR",
+  "id": "./app.html",
+  "start_url": "./app.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#1f4e8c",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
