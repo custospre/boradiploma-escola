@@ -294,11 +294,12 @@
     var c=(x.contato||'').trim(), fone=c.replace(/\D/g,''), mail=/@/.test(c); if(fone.length>=10&&fone.length<=11) fone='55'+fone;
     var wa='https://wa.me/'+(!mail&&fone.length>=12?fone:'')+'?text='+encodeURIComponent(txt);
     $('mbox').innerHTML='<h2>📨 Convite de '+E(x.nome)+'</h2><div class="big">'+E(x.codigo)+'</div><textarea readonly id="mtxt">'+E(txt)+'</textarea>'
-      +'<div class="acts"><button class="btn-ac" id="mcp">📋 Copiar</button><a class="btn btn-lib" href="'+E(wa)+'" target="_blank" rel="noopener">🟢 WhatsApp</a>'
+      +'<div class="acts"><button class="btn-ac" id="mcp">📋 Copiar mensagem</button><button class="btn-ac" id="mlk">🔗 Copiar só o link</button><a class="btn btn-lib" href="'+E(wa)+'" target="_blank" rel="noopener">🟢 WhatsApp</a>'
       +(mail?'<a class="btn btn-ac" href="mailto:'+E(c)+'?subject='+encodeURIComponent('Convite: '+m.escola.nome)+'&body='+encodeURIComponent(txt)+'">✉️ E-mail</a>':'')
       +'<button class="btn-sec" id="mfechar">Fechar</button></div>';
     $('modal').hidden=false;
     $('mfechar').onclick=fechar;
+    $('mlk').onclick=function(){ (navigator.clipboard?navigator.clipboard.writeText(link):Promise.reject()).then(function(){ toast('Link copiado: '+link); },function(){ prompt('Copie o link:',link); }); };
     $('mcp').onclick=function(){ (navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(function(){ toast('Convite copiado'); },function(){ $('mtxt').select(); document.execCommand('copy'); toast('Convite copiado'); }); };
   }
   function fechar(){ $('modal').hidden=true; }

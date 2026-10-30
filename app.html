@@ -5579,11 +5579,13 @@ if ('serviceWorker' in navigator) {
     var d=janela('📨 Convite de '+E(x.nome),
       (x.entrou?'<p class="escok">✅ '+E(primeiro(x.nome))+' já entrou com este convite.</p>':'')
       +'<div class="esccodigo">'+E(x.codigo)+'</div><textarea id="efTxt" readonly rows="7">'+E(txt)+'</textarea>',
-      '<button type="button" class="escbtn" data-cp>📋 Copiar</button><a class="escbtn" href="'+E(wa)+'" target="_blank" rel="noopener">WhatsApp</a>'
+      '<button type="button" class="escbtn" data-cp>📋 Copiar mensagem</button><button type="button" class="escbtn" data-lk>🔗 Copiar só o link</button><a class="escbtn" href="'+E(wa)+'" target="_blank" rel="noopener">WhatsApp</a>'
       +(mail?'<a class="escbtn" href="mailto:'+E(c)+'?subject='+encodeURIComponent('Convite: '+m.escola.nome)+'&body='+encodeURIComponent(txt)+'">✉️ E-mail</a>':'')
       +'<button type="button" class="escbtn2" data-novo>🔄 Novo código</button><button type="button" class="escbtn2" data-x>Fechar</button>');
     d.querySelector('[data-x]').addEventListener('click',fechar);
     d.addEventListener('keydown',function(e){ if(e.key==='Escape') fechar(); });
+    d.querySelector('[data-lk]').addEventListener('click',function(){ var lk=location.origin+location.pathname+'?convite='+x.codigo;
+      (navigator.clipboard?navigator.clipboard.writeText(lk):Promise.reject()).then(function(){ aviso('Link copiado'); },function(){ prompt('Copie o link:',lk); }); });
     d.querySelector('[data-cp]').addEventListener('click',function(){
       var t=d.querySelector('#efTxt');
       (navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(function(){ aviso('Convite copiado'); },function(){ t.select(); try{ document.execCommand('copy'); aviso('Convite copiado'); }catch(_){} });
