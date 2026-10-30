@@ -2927,6 +2927,7 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
   // tocar na notificação: abre a agenda certa e destaca o compromisso
   function agAbreNotif(n){
     if(n&&/^\uD83D\uDCAC/.test(n.t||'')&&window.bdAbrirChat){ window.bdAbrirChat(n.t); return; } // aviso do grupo
+    if(n&&/^\uD83D\uDCE2/.test(n.t||'')&&window.bdAbrirAviso){ window.bdAbrirAviso(n.t); return; } // aviso da escola
     n=n||{}; var t=String(n.t||''), b=String(n.b||''), g=String(n.g||'');
     if(/^(✨|☀)/.test(t)||!t){ var hh=agHoje(), hq=getAgenda().filter(function(y){ return y&&!y.del&&y.data===hh; }).map(agDe); openAgenda(hq.indexOf(agQual)>=0||!hq.length?agQual:hq[0]); return; }
     var a=getAgenda().filter(function(x){ return x&&!x.del; }), x=null;
@@ -5246,6 +5247,16 @@ if ('serviceWorker' in navigator) {
 .escenvio .escbtn{height:42px}
 .escmsgprev{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:.92rem;max-height:160px;overflow:auto}
 .escmopts{display:flex;flex-direction:column;gap:6px;width:100%}
+/* avisos da escola */
+.escavw{max-width:760px}
+.escavtxt h3{font-size:1.1rem}
+.escavconv{flex:none;max-height:50vh;min-height:80px}
+.escavp{flex-wrap:wrap}
+.escavmini{flex-basis:100%;display:flex;flex-direction:column;margin:2px 0 4px 18px}
+.escavmini .escmsg{margin-top:4px}
+.escchk{display:flex;gap:8px;align-items:flex-start;font-size:.9rem;margin:10px 0;line-height:1.35}
+.escchk input{margin-top:3px;width:auto}
+.escchk small{color:var(--muted)}
 .escmopts .escbtn2{text-align:left}
 @media (max-width:560px){ .escnums b{font-size:1.15rem} .escnums div{font-size:.72rem} .escchat{height:calc(100dvh - 190px)} .escbal{max-width:88%} }
 </style>
@@ -5255,6 +5266,7 @@ if ('serviceWorker' in navigator) {
 (function(){
   var box=null, dados=[], sel=0, aberto={}, codPre='';
   var grupos=[], denuncias=[], chat=null, chatTimer=null, exemploOk={}, pendChat=null;
+  var avisos=[], avisosEsc=[], avAb=null, avisoTimer=null, pendAviso=null;
   var PAPEL={aluno:'Aluno(a)',responsavel:'Responsável',professor:'Professor(a)',coordenacao:'Coordenação'};
   var ICO={aluno:'🎒',responsavel:'👨‍👩‍👧',professor:'🧑‍🏫',coordenacao:'🏫'};
   function E(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
@@ -5271,19 +5283,22 @@ if ('serviceWorker' in navigator) {
     if(!box) return Promise.resolve();
     if(!logado()){ box.innerHTML='<div class="escvazio">Entre na sua conta para ver a sua escola.</div>'; return Promise.resolve(); }
     if(!dados.length) box.innerHTML='<div class="escvazio">Carregando…</div>';
-    return Promise.all([rpc('escola_painel'), rpc('chat_grupos').catch(function(){ return []; })]).then(function(r){
-      dados=Array.isArray(r[0])?r[0]:[]; grupos=Array.isArray(r[1])?r[1]:[]; if(sel>=dados.length) sel=0;
-      var m=atual(); denuncias=[];
+    return Promise.all([rpc('escola_painel'), rpc('chat_grupos').catch(function(){ return []; }), rpc('avisos_meus').catch(function(){ return []; })]).then(function(r){
+      dados=Array.isArray(r[0])?r[0]:[]; grupos=Array.isArray(r[1])?r[1]:[]; avisos=Array.isArray(r[2])?r[2]:[]; if(sel>=dados.length) sel=0;
+      var m=atual(); denuncias=[]; avisosEsc=[];
       if(!m||m.papel!=='coordenacao') return;
       if(m.escola.modelo&&!exemploOk[m.escola.id]){ // escola de exemplo: põe umas conversas para mostrar (só se o grupo estiver vazio)
         exemploOk[m.escola.id]=1;
-        rpc('chat_exemplo',{p_escola:m.escola.id}).then(function(){ return rpc('chat_grupos'); }).then(function(g){ if(Array.isArray(g)){ grupos=g; if(!chat) desenhar(); } },function(){});
+        rpc('chat_exemplo',{p_escola:m.escola.id}).then(function(){ return rpc('chat_grupos'); }).then(function(g){ if(Array.isArray(g)){ grupos=g; if(!ocupado()) desenhar(); } },function(){});
       }
-      return rpc('chat_denuncias',{p_escola:m.escola.id}).then(function(d){ denuncias=Array.isArray(d)?d:[]; },function(){});
+      return Promise.all([
+        rpc('chat_denuncias',{p_escola:m.escola.id}).then(function(d){ denuncias=Array.isArray(d)?d:[]; },function(){}),
+        rpc('avisos_escola',{p_escola:m.escola.id}).then(function(d){ avisosEsc=Array.isArray(d)?d:[]; },function(){})]);
     }).then(function(){
       if(pendChat){ var p=pendChat; pendChat=null; if(abrirPorTitulo(p)) return; }
-      if(!chat) desenhar();
-    },function(e){ if(!chat) box.innerHTML='<div class="escvazio">⚠️ '+E(e.message)+'</div>'; });
+      if(pendAviso){ var q=pendAviso; pendAviso=null; if(abrirAvisoPorTitulo(q)) return; }
+      if(!ocupado()) desenhar();
+    },function(e){ if(!ocupado()) box.innerHTML='<div class="escvazio">⚠️ '+E(e.message)+'</div>'; });
   }
   function atual(){ return dados[sel]||null; }
   function pessoa(id){ var m=atual(); return ((m&&m.membros)||[]).filter(function(x){ return x.id===id; })[0]||null; }
@@ -5333,6 +5348,9 @@ if ('serviceWorker' in navigator) {
       +'<p>Quando liberado, os responsáveis de cada turma veem uns aos outros e têm um grupo só deles, separado do grupo dos alunos. Com ou sem o grupo, cada responsável vê só o próprio filho e a escola.</p></div></div>';
     h+='<a class="escbtn escpainel" href="painel.html" target="_blank" rel="noopener">🛠 Abrir o Painel da escola</a><span class="escdim"> liberar, bloquear e remover acessos</span>';
     h+=denunciasHTML();
+    var nv=avisosEsc.reduce(function(n,a){ return n+(+a.novas||0); },0);
+    h+=secao('avisos','📢 Avisos da escola',avisosEsc.length+' enviado'+(avisosEsc.length===1?'':'s')+(nv?' · <b class="escnovas">'+nv+' resposta'+(nv===1?'':'s')+' nova'+(nv===1?'':'s')+'</b>':''),
+      '<button type="button" class="escbtn escadd" data-ea="novoaviso">＋ Novo aviso</button>'+listaAvisosEsc());
     var gs=grupos.filter(function(g){ return g.escola_id===m.escola.id; }), nn=gs.filter(nova).length;
     if(gs.length) h+=secao('grupos','💬 Grupos das turmas',gs.length+' grupo'+(gs.length===1?'':'s')+(nn?' · <b class="escnovas">'+nn+' com novidade</b>':''),listaGrupos(gs));
     var h0=h; h='';
@@ -5367,13 +5385,14 @@ if ('serviceWorker' in navigator) {
     var t=m.turma, h='<div class="esccard"><h3>🎒 Minha turma: '+(t?E(t.nome)+(t.turno?' · '+E(t.turno):''):'ainda sem turma')+'</h3>';
     h+='<p class="escdim">Colegas ('+(m.colegas||[]).length+')</p>'+tags(m.colegas);
     h+='<p class="escdim" style="margin-top:10px">Professores</p><ul class="esclist">'+((m.professores||[]).map(function(p){ return '<li>'+E(p.nome)+(p.materia?' <span class="escdim">· '+E(p.materia)+'</span>':'')+'</li>'; }).join('')||'<li class="escdim">nenhum ainda</li>')+'</ul></div>';
-    return h+gruposHTML(m,'turma')+embreve([['📢 Canal da escola','Avisos e conversa direta com a coordenação.'],['📚 Material e simulados','Os impressos dos professores e simulados feitos pela IA, com a explicação de cada resposta.']]);
+    return h+avisosHTML(m)+gruposHTML(m,'turma')+embreve([['📚 Material e simulados','Os impressos dos professores e simulados feitos pela IA, com a explicação de cada resposta.']]);
   }
   function telaResp(m){
     var f=m.filho||{}, t=f.turma, pn=E(primeiro(f.nome));
     var h='<div class="esccard"><h3>🎒 '+E(f.nome||'')+'</h3><p>'+(t?'Turma <b>'+E(t.nome)+'</b>'+(t.turno?' · '+E(t.turno):''):'Ainda sem turma')+(m.parentesco?' · você: <b>'+E(m.parentesco)+'</b>':'')+'</p>'
       +'<p class="escdim">'+(f.entrou?'✅ '+pn+' já usa o app.':'⏳ '+pn+' ainda não entrou no app.')+'</p></div>';
-    var it=[['📅 Provas e prazos de '+pn,'As avaliações e os trabalhos, com aviso no celular.'],['📊 Notas dos simulados','Como '+pn+' está indo e em quais assuntos precisa de reforço.'],['📢 Falar com a escola','Avisos da escola e conversa direta com a coordenação.']];
+    var it=[['📅 Provas e prazos de '+pn,'As avaliações e os trabalhos, com aviso no celular.'],['📊 Notas dos simulados','Como '+pn+' está indo e em quais assuntos precisa de reforço.']];
+    h+=avisosHTML(m);
     if(m.pais_turma){
       h+='<div class="esccard"><h3>👨‍👩‍👧 Pais da turma</h3><ul class="esclist">'+(m.pais_turma.map(function(p){ return '<li>'+E(p.nome)+' <span class="escdim">· '+E(p.parentesco||'responsável')+' de '+E(primeiro(p.filho))+'</span></li>'; }).join('')||'<li class="escdim">nenhum outro ainda</li>')+'</ul></div>';
       h+=gruposHTML(m,'pais');
@@ -5447,7 +5466,124 @@ if ('serviceWorker' in navigator) {
   // a conversa ocupa o resto da tela, deixando livre embaixo o lugar dos botões flutuantes (Página anterior e microfone)
   function ajusta(){ var c=box&&box.querySelector('.escchat'); if(!c) return; var top=c.getBoundingClientRect().top+(window.pageYOffset||0); c.style.height=Math.max(240,window.innerHeight-top-84)+'px'; var en=c.querySelector('.escenvio'); if(en&&en.getBoundingClientRect().bottom>window.innerHeight-70) window.scrollBy(0,en.getBoundingClientRect().bottom-window.innerHeight+80); }
   window.addEventListener('resize',function(){ if(chat) ajusta(); });
-  function sairChat(){ chat=null; clearInterval(chatTimer); desenhar(); carregar(); window.scrollTo({top:0}); }
+  function pararTudo(){ chat=null; clearInterval(chatTimer); avAb=null; clearInterval(avisoTimer); }
+  function ocupado(){ return !!(chat||avAb); }   // conversa ou aviso aberto: não redesenhar a tela por baixo
+  function sairChat(){ pararTudo(); desenhar(); carregar(); window.scrollTo({top:0}); }
+
+  // ---------- avisos da escola ----------
+  var ALVO={alunos:'Todos os alunos',turma:'Alunos da turma',pais:'Todos os pais',pais_turma:'Pais da turma',aluno:'Aluno',pais_aluno:'Pais de'};
+  function dataHora(iso){ return dia(iso)+' '+hhmm(iso); }
+  function alvoTexto(a){ return ALVO[a.alvo]+(a.turma?' '+a.turma:'')+(a.aluno?(a.alvo==='aluno'?': ':' ')+a.aluno:''); }
+  function avisosHTML(m){
+    var l=avisos.filter(function(a){ return a.escola_id===m.escola.id; });
+    var h='<h2 class="esch2">📢 Avisos da escola</h2>';
+    if(!l.length) return h+'<div class="escdim" style="padding:2px 2px 6px">Nenhum aviso ainda. Quando a escola mandar, ele aparece aqui e chega no seu celular.</div>';
+    return h+'<div class="escgrupos">'+l.map(function(a){ var nv=!a.lido, rs=+a.novas>0;
+      return '<button type="button" class="escgrupo'+(nv||rs?' nova':'')+'" data-ea="aviso" data-id="'+a.id+'" data-m="'+a.membro_id+'"><span class="escgi">📢</span>'
+        +'<span class="escgt"><b>'+E(a.titulo)+'</b><small>'+E(String(a.texto).slice(0,90))+'</small></span>'
+        +'<span class="escgq">'+hora(a.em)+(nv?'<i>novo</i>':'')+(rs?'<i>resposta</i>':'')+'</span></button>'; }).join('')+'</div>';
+  }
+  function abrirAvisoPorTitulo(t){
+    t=String(t||'').replace(/^📢\s*(Resposta da escola:\s*)?/,'');
+    var a=avisos.filter(function(x){ return x.titulo===t; })[0]; if(!a) return false; abrirAviso(a.id,a.membro_id); return true;
+  }
+  function telaAviso(titulo){
+    box.innerHTML='<div class="escavw"><div class="escchead"><button type="button" class="escbtn2" data-ea="sair">← Voltar</button><div class="escctit"><b>'+titulo+'</b><small id="avQuando"></small></div></div><div id="avCorpo"><div class="escvazio">Carregando…</div></div></div>';
+    window.scrollTo({top:0});
+  }
+  function balao(r,minha){ return '<div class="escmsg'+(minha?' minha':'')+'"><div class="escbal">'+(!minha?'<div class="escaut">'+E(r.autor)+(r.da_escola?' <span class="esctag">Escola</span>':'')+'</div>':'')
+    +'<div class="esctxt">'+linkify(r.texto)+'</div><div class="escmeta">'+dataHora(r.em)+'</div></div></div>'; }
+  // aluno / responsável: ler o aviso e conversar com a escola (só a própria conversa)
+  function abrirAviso(id,mid){
+    pararTudo(); avAb={id:+id,m:mid,d:null}; telaAviso('📢 Aviso da escola'); buscarAviso();
+    avisoTimer=setInterval(function(){ var v=document.getElementById('view-escola'); if(avAb&&!avAb.esc&&v&&!v.hidden&&!document.hidden) buscarAviso(true); },10000);
+  }
+  function buscarAviso(silencioso){
+    var a=avAb; if(!a||a.esc) return;
+    rpc('aviso_abrir',{p_aviso:a.id,p_membro:a.m}).then(function(d){
+      if(avAb!==a) return; var antes=a.d?a.d.conversa.length:-1; a.d=d;
+      avisos.forEach(function(x){ if(x.id===a.id&&x.membro_id===a.m){ x.lido=true; x.novas=0; } });
+      if(!silencioso||d.conversa.length!==antes) desenharAviso();
+    },function(e){ if(!silencioso&&avAb===a){ var c=box.querySelector('#avCorpo'); if(c) c.innerHTML='<div class="escvazio">⚠️ '+E(e.message)+'</div>'; } });
+  }
+  function desenharAviso(){
+    var d=avAb.d, el=box.querySelector('#avCorpo'); if(!el) return;
+    var ta=box.querySelector('#avTxt'), rasc=ta?ta.value:'';
+    box.querySelector('#avQuando').textContent=(d.autor||'Escola')+' · '+dataHora(d.em);
+    var h='<div class="esccard escavtxt"><h3>'+E(d.titulo)+'</h3><div class="esctxt">'+linkify(d.texto)+'</div></div>';
+    if(d.permite_resposta||d.conversa.length){
+      h+='<h2 class="esch2">💬 Sua conversa com a escola</h2><p class="escdim" style="margin:-4px 0 8px">Só você e a coordenação veem esta conversa.</p>'
+        +'<div class="escmsgs escavconv">'+(d.conversa.length?d.conversa.map(function(r){ return balao(r,!r.da_escola); }).join(''):'<div class="escvazio">Nenhuma resposta ainda.</div>')+'</div>';
+      if(d.permite_resposta) h+='<div class="escenvio"><textarea id="avTxt" rows="2" maxlength="2000" placeholder="Responder à escola" spellcheck="true" lang="pt-BR" autocapitalize="sentences"></textarea><button type="button" class="escbtn" data-ea="avenviar">Enviar</button></div>';
+    }
+    el.innerHTML=h;
+    var t2=box.querySelector('#avTxt'); if(t2&&rasc) t2.value=rasc;
+    var cv=box.querySelector('.escavconv'); if(cv) cv.scrollTop=cv.scrollHeight;
+  }
+  function enviarResposta(){
+    var ta=box.querySelector('#avTxt'), bt=box.querySelector('[data-ea="avenviar"]'), t=(ta&&ta.value||'').trim(); if(!t||!avAb) return;
+    if(palavrao(t)){ aviso('Sua mensagem tem palavras que não são permitidas. Reescreva com respeito.'); return; }
+    bt.disabled=true;
+    rpc('aviso_responder',{p_aviso:avAb.id,p_membro:avAb.m,p_texto:t}).then(function(){ ta.value=''; bt.disabled=false; buscarAviso(); },function(e){ bt.disabled=false; aviso(e.message); });
+  }
+  // coordenação: avisos enviados, quem leu e as respostas de cada pessoa
+  function listaAvisosEsc(){
+    if(!avisosEsc.length) return '<div class="escdim" style="padding:6px 2px">Nenhum aviso enviado ainda.</div>';
+    return '<div class="escgrupos" style="margin-top:8px">'+avisosEsc.map(function(a){ var nv=+a.novas||0;
+      return '<button type="button" class="escgrupo'+(nv?' nova':'')+'" data-ea="avisoesc" data-id="'+a.id+'"><span class="escgi">📢</span>'
+        +'<span class="escgt"><b>'+E(a.titulo)+'</b><small>'+E(alvoTexto(a))+' · 👁 '+a.lidos+' de '+a.destinatarios+' leram · 💬 '+a.respostas+'</small></span>'
+        +'<span class="escgq">'+hora(a.em)+(nv?'<i>'+nv+' nova'+(nv===1?'':'s')+'</i>':'')+'</span></button>'; }).join('')+'</div>';
+  }
+  function detalheAviso(id){
+    pararTudo(); avAb={id:+id,esc:true,d:null}; telaAviso('📢 Aviso enviado'); buscarDetalhe();
+    avisoTimer=setInterval(function(){ var v=document.getElementById('view-escola'); if(avAb&&avAb.esc&&v&&!v.hidden&&!document.hidden&&!document.getElementById('escModal')) buscarDetalhe(true); },15000);
+  }
+  function buscarDetalhe(silencioso){
+    var a=avAb; if(!a||!a.esc) return;
+    rpc('aviso_detalhe',{p_aviso:a.id}).then(function(d){ if(avAb!==a) return; var antes=a.d?JSON.stringify(a.d.pessoas):''; a.d=d; if(!silencioso||JSON.stringify(d.pessoas)!==antes) desenharDetalhe(); },
+      function(e){ if(!silencioso&&avAb===a){ var c=box.querySelector('#avCorpo'); if(c) c.innerHTML='<div class="escvazio">⚠️ '+E(e.message)+'</div>'; } });
+  }
+  function desenharDetalhe(){
+    var d=avAb.d, el=box.querySelector('#avCorpo'); if(!el) return;
+    var ps=d.pessoas||[], lidos=ps.filter(function(p){ return p.lido_em; }).length;
+    box.querySelector('#avQuando').textContent=dataHora(d.em);
+    var h='<div class="esccard escavtxt"><h3>'+E(d.titulo)+'</h3><div class="esctxt">'+linkify(d.texto)+'</div>'
+      +'<p class="escdim" style="margin-top:8px">Recebido por <b>'+ps.length+'</b> · lido por <b>'+lidos+'</b>'+(d.permite_resposta?'':' · sem respostas')+'</p>'
+      +'<button type="button" class="escbtn2" data-ea="avapagar" style="margin-top:6px">🗑 Apagar aviso</button></div>';
+    h+='<h2 class="esch2">👥 Quem recebeu</h2>';
+    h+=ps.map(function(p){
+      var info=p.papel==='responsavel'?((p.parentesco||'Responsável')+(p.filho?' de '+p.filho:'')):(p.turma||'');
+      var st=p.lido_em?'<span class="escst ok">✓ leu '+dataHora(p.lido_em)+'</span>':(p.entrou?'<span class="escst">não leu</span>':'<span class="escst">ainda não entrou no app</span>');
+      var cv=(p.conversa||[]).length?'<div class="escavmini">'+p.conversa.map(function(r){ return balao(r,r.da_escola); }).join('')+'</div>':'';
+      return '<div class="escpes escavp"><div class="escpn">'+ICO[p.papel]+' '+E(p.nome)+(info?' <span class="escdim">· '+E(info)+'</span>':'')+'</div><div class="escpa">'+st
+        +(d.permite_resposta?'<button type="button" class="escib" title="Responder" data-ea="avresp" data-id="'+p.membro_id+'">↩</button>':'')+'</div>'+cv+'</div>';
+    }).join('');
+    el.innerHTML=h;
+  }
+  function responderPessoa(mid){
+    var p=(avAb&&avAb.d&&avAb.d.pessoas||[]).filter(function(x){ return x.membro_id===mid; })[0]; if(!p) return;
+    var d=janela('↩ Responder '+E(p.nome),campo('Resposta <small>(só '+E(primeiro(p.nome))+' vê)</small>','<textarea id="efTx" rows="4" maxlength="2000"></textarea>'),
+      '<button type="button" class="escbtn" data-ok>Enviar</button><button type="button" class="escbtn2" data-x>Cancelar</button>');
+    var a=avAb;
+    ligar(d,function(){ return rpc('aviso_responder_escola',{p_aviso:a.id,p_membro:mid,p_texto:d.querySelector('#efTx').value}).then(function(){ if(avAb===a) buscarDetalhe(); }); });
+  }
+  function formAviso(){
+    var m=atual(), tur=m.turmas||[], als=(m.membros||[]).filter(function(a){ return a.papel==='aluno'&&!a.bloqueado; }).sort(function(a,b){ return a.nome.localeCompare(b.nome); });
+    var d=janela('📢 Novo aviso',
+      campo('Para quem','<select id="efAlvo">'+opts([['alunos','🎒 Todos os alunos'],['turma','🎒 Alunos de uma turma'],['pais','👨‍👩‍👧 Todos os pais'],['pais_turma','👨‍👩‍👧 Pais de uma turma'],['aluno','🎒 Um aluno'],['pais_aluno','👨‍👩‍👧 Os pais de um aluno']],'alunos')+'</select>')
+      +'<div id="efLTurma" hidden>'+campo('Turma','<select id="efTurma">'+opts(tur.map(function(t){ return [t.id,t.nome+(t.turno?' · '+t.turno:'')]; }),'')+'</select>')+'</div>'
+      +'<div id="efLAluno" hidden>'+campo('Aluno','<select id="efAluno">'+opts(als.map(function(a){ var t=turma(a.turma_id); return [a.id,a.nome+(t?' — '+t.nome:'')]; }),'')+'</select>')+'</div>'
+      +campo('Título','<input id="efTit" maxlength="120" placeholder="Ex.: Reunião de pais na quinta" autocomplete="off">')
+      +campo('Mensagem','<textarea id="efTx" rows="5" maxlength="4000" placeholder="Escreva o aviso"></textarea>')
+      +'<label class="escchk"><input type="checkbox" id="efResp" checked> Permitir respostas <small>(cada pessoa responde só para a escola; ninguém vê a resposta dos outros)</small></label>',
+      '<button type="button" class="escbtn" data-ok>📢 Enviar aviso</button><button type="button" class="escbtn2" data-x>Cancelar</button>');
+    function alvo(){ var v=d.querySelector('#efAlvo').value; d.querySelector('#efLTurma').hidden=!/turma/.test(v); d.querySelector('#efLAluno').hidden=!/aluno/.test(v); }
+    d.querySelector('#efAlvo').addEventListener('change',alvo); alvo();
+    ligar(d,function(){ function v(s){ return d.querySelector(s).value; }
+      return rpc('aviso_enviar',{p_escola:m.escola.id,p_alvo:v('#efAlvo'),p_turma:v('#efTurma')||null,p_aluno:v('#efAluno')||null,
+        p_titulo:v('#efTit'),p_texto:v('#efTx'),p_permite_resposta:d.querySelector('#efResp').checked})
+        .then(function(r){ aberto.avisos=true; setTimeout(function(){ aviso('Aviso enviado para '+r.destinatarios+' pessoa'+(r.destinatarios===1?'':'s')); },700); }); });
+  }
   function tique(){
     if(!chat){ clearInterval(chatTimer); return; }
     var v=document.getElementById('view-escola');
@@ -5614,6 +5750,13 @@ if ('serviceWorker' in navigator) {
     if(a==='sel'){ sel=+b.getAttribute('data-i')||0; denuncias=[]; desenhar(); carregar(); return; }
     if(a==='chat'){ abrirChat(b.getAttribute('data-t'),b.getAttribute('data-g')); return; }
     if(a==='sair'){ sairChat(); return; }
+    if(a==='aviso'){ abrirAviso(id,b.getAttribute('data-m')); return; }
+    if(a==='avenviar'){ enviarResposta(); return; }
+    if(a==='novoaviso'){ formAviso(); return; }
+    if(a==='avisoesc'){ detalheAviso(id); return; }
+    if(a==='avresp'){ responderPessoa(id); return; }
+    if(a==='avapagar'){ if(!avAb||!confirm('Apagar este aviso? Ele some para todos que receberam, junto com as respostas.')) return;
+      rpc('aviso_apagar',{p_aviso:avAb.id}).then(function(){ aviso('Aviso apagado'); sairChat(); },function(er){ aviso(er.message); }); return; }
     if(a==='enviar'){ enviar(); return; }
     if(a==='msg'){ menuMsg(id); return; }
     if(a==='denapagar'||a==='denmanter'){ rpc('chat_resolver',{p_denuncia:+id,p_apagar:a==='denapagar'}).then(function(){ aviso(a==='denapagar'?'Mensagem apagada':'Denúncia encerrada'); return carregar(); },function(er){ aviso(er.message); }); return; }
@@ -5657,7 +5800,9 @@ if ('serviceWorker' in navigator) {
       function(er){ codPre=cv; aviso(er.message); if(window.bdAbrirEscola) window.bdAbrirEscola(); });
   })(0);
 
-  window.bdEscola={ abrir:function(el){ if(box!==el){ box=el; box.addEventListener('click',clique); } chat=null; clearInterval(chatTimer); if(dados.length) desenhar(); carregar(); } };
+  window.bdEscola={ abrir:function(el){ if(box!==el){ box=el; box.addEventListener('click',clique); } pararTudo(); if(dados.length) desenhar(); carregar(); } };
+  // tocar no aviso "📢 ..." abre direto o aviso
+  window.bdAbrirAviso=function(t){ pendAviso=t; if(window.bdAbrirEscola) window.bdAbrirEscola(); };
   // tocar no aviso "💬 Turma · Grupo..." abre direto a conversa
   window.bdAbrirChat=function(t){ pendChat=t; if(window.bdAbrirEscola) window.bdAbrirEscola(); };
 })();
