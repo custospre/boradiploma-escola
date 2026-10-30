@@ -5250,6 +5250,14 @@ if ('serviceWorker' in navigator) {
 .escenvio .escbtn{height:42px}
 .escmsgprev{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:.92rem;max-height:160px;overflow:auto}
 .escmopts{display:flex;flex-direction:column;gap:6px;width:100%}
+/* pais: provas e prazos do filho */
+.escpz{display:flex;gap:10px;align-items:baseline;padding:6px 0;border-top:1px solid var(--line);font-size:.93rem}
+.escpzc .escpz:first-child{border-top:0}
+.escpzd{font-family:var(--font-head);font-weight:700;color:var(--accent);min-width:44px}
+.escpzt{flex:1;min-width:0}
+.escpzq{font-family:var(--font-head);font-size:.78rem;color:var(--muted);white-space:nowrap}
+.escpz.perto .escpzq{color:#c62828;font-weight:700}
+.escpzold summary{cursor:pointer;margin-top:8px}
 /* material da escola */
 .escmatg{font-family:var(--font-head);font-weight:700;margin:12px 2px 0}
 .escmbox.escmlarga{max-width:640px}
@@ -5299,7 +5307,7 @@ if ('serviceWorker' in navigator) {
     if(!dados.length) box.innerHTML='<div class="escvazio">Carregando…</div>';
     return Promise.all([rpc('escola_painel'), rpc('chat_grupos').catch(function(){ return []; }), rpc('avisos_meus').catch(function(){ return []; }), rpc('materiais_lista').catch(function(){ return null; })]).then(function(r){
       dados=Array.isArray(r[0])?r[0]:[]; grupos=Array.isArray(r[1])?r[1]:[]; avisos=Array.isArray(r[2])?r[2]:[]; if(Array.isArray(r[3])) guardaMats(r[3]); if(sel>=dados.length) sel=0;
-      var m=atual(); denuncias=[]; avisosEsc=[];
+      var m=atual(); denuncias=[]; avisosEsc=[]; filhoRes={};
       if(!m||m.papel!=='coordenacao') return;
       if(m.escola.modelo&&!exemploOk[m.escola.id]){ // escola de exemplo: põe umas conversas para mostrar (só se o grupo estiver vazio)
         exemploOk[m.escola.id]=1;
@@ -5405,11 +5413,39 @@ if ('serviceWorker' in navigator) {
     h+='<p class="escdim" style="margin-top:10px">Professores</p><ul class="esclist">'+((m.professores||[]).map(function(p){ return '<li>'+E(p.nome)+(p.materia?' <span class="escdim">· '+E(p.materia)+'</span>':'')+'</li>'; }).join('')||'<li class="escdim">nenhum ainda</li>')+'</ul></div>';
     return h+avisosHTML(m)+matsHTML(m)+gruposHTML(m,'turma')+embreve([['📝 Simulados','Simulados feitos pela IA a partir do material dos professores, com a explicação de cada resposta.']]);
   }
+  // ---------- pais: provas, trabalhos e agenda da escola do filho (o que ele anota no app dele) ----------
+  var filhoRes={};
+  function dmY(v){ var p=String(v||'').split('-'); return p.length===3?p[2]+'/'+p[1]:v; }
+  function diasAte(v){ var p=String(v).split('-'); var d=new Date(+p[0],+p[1]-1,+p[2]), t=new Date(); t.setHours(0,0,0,0); return Math.round((d-t)/86400000); }
+  function quando(du){ return du===0?'HOJE':(du===1?'amanhã':(du<0?'há '+(-du)+' dia'+(du===-1?'':'s'):'em '+du+' dias')); }
+  function prazosFilhoHTML(m){
+    var f=m.filho||{}, pn=E(primeiro(f.nome)), c=filhoRes[m.membro_id];
+    var h='<h2 class="esch2">📅 Provas e prazos de '+pn+'</h2>';
+    if(!c){ filhoRes[m.membro_id]={carregando:true};
+      rpc('filho_resumo',{p_membro:m.membro_id}).then(function(d){ filhoRes[m.membro_id]=d||{}; },function(e){ filhoRes[m.membro_id]={erro:e.message}; })
+        .then(function(){ var a=atual(); if(a&&a.membro_id===m.membro_id&&!ocupado()) desenhar(); });
+      return h+'<div class="escdim" style="padding:4px 2px">Carregando…</div>'; }
+    if(c.carregando) return h+'<div class="escdim" style="padding:4px 2px">Carregando…</div>';
+    if(c.erro) return h+'<div class="escdim" style="padding:4px 2px">⚠️ '+E(c.erro)+'</div>';
+    if(!c.entrou) return h+'<div class="esccard"><p>⏳ '+pn+' ainda não entrou no app. Quando entrar e cadastrar as provas e os trabalhos, eles aparecem aqui.</p></div>';
+    var px=(c.prazos||[]).map(function(x){ x.du=diasAte(x.data); return x; });
+    var vem=px.filter(function(x){ return x.du>=0; }), foi=px.filter(function(x){ return x.du<0; }).reverse().slice(0,5);
+    var ag=(c.agenda||[]).filter(function(x){ return x.data&&diasAte(x.data)>=0; });
+    function linhaP(x){ var ok=x.entregue&&x.entregue!==false&&x.entregue!=='';
+      return '<div class="escpz'+(x.du>=0&&x.du<=3&&!ok?' perto':'')+'"><span class="escpzd">'+dmY(x.data)+'</span><span class="escpzt"><b>'+E(x.materia||'')+'</b> · '+E(x.tipo)+': '+E(x.titulo||'')+(ok?' <span class="escok">✔ entregue</span>':'')+'</span><span class="escpzq">'+quando(x.du)+'</span></div>'; }
+    var r='<div class="esccard escpzc">';
+    r+=vem.length?vem.map(linhaP).join(''):'<p class="escdim">Nenhuma prova ou trabalho marcado daqui para frente.</p>';
+    if(ag.length) r+='<p class="escdim" style="margin:10px 0 2px"><b>🏫 Agenda da escola</b></p>'+ag.map(function(x){ return '<div class="escpz"><span class="escpzd">'+dmY(x.data)+'</span><span class="escpzt">'+E(x.titulo||'')+(x.hora?' <span class="escdim">· '+E(x.hora)+'</span>':'')+'</span><span class="escpzq">'+quando(diasAte(x.data))+'</span></div>'; }).join('');
+    if(foi.length) r+='<details class="escpzold"><summary class="escdim">Últimas que já passaram ('+foi.length+')</summary>'+foi.map(linhaP).join('')+'</details>';
+    r+='<p class="escdim" style="margin-top:8px;font-size:.8rem">É o que '+pn+' anota no app'+(c.atualizado?' · atualizado '+dataHora(c.atualizado):'')+'.</p></div>';
+    return h+r;
+  }
   function telaResp(m){
     var f=m.filho||{}, t=f.turma, pn=E(primeiro(f.nome));
     var h='<div class="esccard"><h3>🎒 '+E(f.nome||'')+'</h3><p>'+(t?'Turma <b>'+E(t.nome)+'</b>'+(t.turno?' · '+E(t.turno):''):'Ainda sem turma')+(m.parentesco?' · você: <b>'+E(m.parentesco)+'</b>':'')+'</p>'
       +'<p class="escdim">'+(f.entrou?'✅ '+pn+' já usa o app.':'⏳ '+pn+' ainda não entrou no app.')+'</p></div>';
-    var it=[['📅 Provas e prazos de '+pn,'As avaliações e os trabalhos, com aviso no celular.'],['📊 Notas dos simulados','Como '+pn+' está indo e em quais assuntos precisa de reforço.']];
+    var it=[['📊 Notas dos simulados','Como '+pn+' está indo e em quais assuntos precisa de reforço.']];
+    h+=prazosFilhoHTML(m);
     h+=avisosHTML(m);
     if(m.pais_turma){
       h+='<div class="esccard"><h3>👨‍👩‍👧 Pais da turma</h3><ul class="esclist">'+(m.pais_turma.map(function(p){ return '<li>'+E(p.nome)+' <span class="escdim">· '+E(p.parentesco||'responsável')+' de '+E(primeiro(p.filho))+'</span></li>'; }).join('')||'<li class="escdim">nenhum outro ainda</li>')+'</ul></div>';
