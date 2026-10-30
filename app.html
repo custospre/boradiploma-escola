@@ -4359,6 +4359,8 @@ if ('serviceWorker' in navigator) {
   }
   function bdCartaoPerm(){
     if(!currentUser || document.getElementById('bd-perm')) return;
+    // aparece so uma vez por aparelho (antes voltava a cada abertura ate liberar tudo)
+    try{ if(localStorage.getItem('bd_perm_visto')) return; }catch(e){}
     if((pendEl && !pendEl.hidden) || (subEl && !subEl.hidden) || !overlay.hidden) return;
     if(!bdPermFalta()) return;
     var f = document.createElement('div'); f.id = 'bd-perm';
@@ -4396,6 +4398,7 @@ if ('serviceWorker' in navigator) {
       bx.querySelector('#bpFim').onclick = fecha;
     }
     desenha(); f.appendChild(bx); document.body.appendChild(f);
+    try{ localStorage.setItem('bd_perm_visto', String(Date.now())); }catch(e){}
   }
   function entrou(session){
     if(session && session.user) currentUser = session.user;
