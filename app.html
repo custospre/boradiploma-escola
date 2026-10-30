@@ -4376,6 +4376,8 @@ if ('serviceWorker' in navigator) {
     function desenha(){
       var m = window.bdMic ? window.bdMic.estado() : 'na', p = window.bdPushEstado ? window.bdPushEstado() : 'sem', o = '';
       o += '<div style="text-align:center"><div style="font-size:34px">🚀</div><div style="font-size:19px;font-weight:800;color:var(--accent,#7a1f2b);margin:2px 0 4px">Vamos deixar seu app pronto!</div><div style="font-size:14.5px;color:var(--muted,#6b6459)">Libere estas duas coisas para aproveitar tudo. O aparelho vai perguntar: toque em <b style="color:var(--fg,#1f1b16)">Permitir</b>.</div></div>';
+      var faltaMic = (m !== 'na' && m !== 'granted' && m !== 'denied'), faltaNot = (p === 'desligado' && !travou);
+      if(faltaMic || faltaNot) o += '<button type="button" id="bpTudo" style="' + bt + ';font-size:17px;padding:14px;margin-top:14px">✅ Liberar tudo</button><div style="font-size:12.5px;color:var(--muted,#6b6459);text-align:center;margin-top:4px">O celular vai perguntar: toque em <b>Permitir</b> nas duas vezes.</div>';
       if(m !== 'na'){
         o += linha('🎙', 'Microfone', 'Para falar com o app: criar compromissos, abrir leis…',
           m === 'granted' ? '<div style="' + okTxt + '">✅ Microfone liberado</div>' :
@@ -4395,6 +4397,10 @@ if ('serviceWorker' in navigator) {
       var bm = bx.querySelector('#bpMic'); if(bm) bm.onclick = function(){ bm.disabled = true; bm.textContent = 'Aguardando…'; window.bdMic.pedir(function(r){ if(r !== 'ok' && r !== 'bloqueado') aviso = r; desenha(); }); };
       var bd = bx.querySelector('#bpMicDe'); if(bd) bd.onclick = function(){ try{ localStorage.removeItem('bd_mic_ok'); }catch(e){} bd.disabled = true; bd.textContent = 'Aguardando…'; window.bdMic.pedir(function(){ desenha(); }); };
       var bn = bx.querySelector('#bpNot'); if(bn) bn.onclick = function(){ bn.disabled = true; bn.textContent = 'Aguardando…'; window.bdAtivarAvisos(function(r){ travou = /^travou/.test(r); if(travou && r !== 'travou:pergunta') aviso = 'Parou na etapa: ' + r.split(':')[1] + ' (mande um print para o suporte).'; else if(!travou && r !== 'ok' && r !== 'bloqueado') aviso = r; desenha(); }); };
+      var bT = bx.querySelector('#bpTudo'); if(bT) bT.onclick = function(){ bT.disabled = true; bT.textContent = 'Aguardando…';
+        // notificacoes primeiro (o celular so pergunta logo depois do toque); o microfone pode perguntar em seguida
+        function mic(){ if(faltaMic) window.bdMic.pedir(function(r2){ if(r2 !== 'ok' && r2 !== 'bloqueado') aviso = r2; desenha(); }); else desenha(); }
+        if(faltaNot) window.bdAtivarAvisos(function(r){ travou = /^travou/.test(r); if(!travou && r !== 'ok' && r !== 'bloqueado') aviso = r; mic(); }); else mic(); };
       bx.querySelector('#bpFim').onclick = fecha;
     }
     desenha(); f.appendChild(bx); document.body.appendChild(f);
