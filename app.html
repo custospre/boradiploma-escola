@@ -1272,7 +1272,7 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
         {label:'Avaliações', children:dlist('avals',s.avals,'＋ incluir avaliação',null,'avals'), vz:DN?('Abrir avaliações'+DN):''},
         {label:'Trabalhos', children:dlist('trabalhos',s.trabalhos,'＋ incluir trabalho',null,'trabalhos'), vz:DN?('Abrir trabalhos'+DN):''},
         {label:'Material de Estudo', children:dlist('estudos',s.estudos,'＋ incluir material de estudo',function(it){ return 'estpg:'+s.id+':'+it.id; }), vz:DN?('Abrir material de estudo'+DN):''}
-      ]});
+      ].concat(escMatNo(s))});
     });
     matKids.push({label:'＋ Nova matéria', act:'newsub', vz:'Nova matéria (nome da matéria)'});
     t.push({label:'Matérias', children:matKids, vz:'Abrir matérias'});
@@ -1285,6 +1285,8 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
     t.push({label:'📖 Manual do app', act:'manual', vz:'Abrir manual do app'});
     return t;
   }
+  // material enviado pela escola para esta matéria (vem da Minha escola; casa pelo nome da matéria)
+  function escMatNo(s){ var n=window.bdEscMatQtd?window.bdEscMatQtd(s.name):0; return n?[{label:'🏫 Material da escola ('+n+')', act:'escmat:'+s.name}]:[]; }
   function renderTree(){ if(!tree)return; tree.innerHTML=buildTree().map(function(n){return nodeHTML(n,1);}).join(''); }
   function resetHome(){ renderTree(); }
   function handleAct(act){
@@ -1300,6 +1302,7 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
     if(act==='matdir'){ window.open(MAT_DIR,'_blank'); return; }
     if(act==='newsub'){ var o=newSubject(); openSubject(o.id); return; }
     if(act==='soon'){ toast('Texto em breve'); return; }
+    if(act.indexOf('escmat:')===0){ if(window.bdAbrirMaterial) window.bdAbrirMaterial(act.slice(7)); return; }
     var p=act.split(':');
     if(p[0]==='code'){ openCode(p[1]); }
     else if(p[0]==='subject'){ openSubject(p[1]); }
@@ -2807,7 +2810,7 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
     crumb.innerHTML='<span class="dim">Início ›</span> Minha escola'; window.scrollTo({top:0});
     if(window.bdEscola) window.bdEscola.abrir(document.getElementById('escBox'));
   }
-  window.bdAbrirEscola=openEscola; window.bdToast=toast;
+  window.bdAbrirEscola=openEscola; window.bdToast=toast; window.bdRenderTree=function(){ if(viewIndex&&!viewIndex.hidden) renderTree(); };
   function openBackup(){
     flushAll(); active=null; curFolder=null; curNoteId=null; curSubjectId=null;
     hideViews(); document.getElementById('view-backup').hidden=false; hideControls();
@@ -5247,6 +5250,16 @@ if ('serviceWorker' in navigator) {
 .escenvio .escbtn{height:42px}
 .escmsgprev{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:.92rem;max-height:160px;overflow:auto}
 .escmopts{display:flex;flex-direction:column;gap:6px;width:100%}
+/* material da escola */
+.escmatg{font-family:var(--font-head);font-weight:700;margin:12px 2px 0}
+.escmbox.escmlarga{max-width:640px}
+.escarqs{display:flex;flex-direction:column;gap:10px}
+.escfoto img{width:100%;height:auto;border-radius:8px;border:1px solid var(--line);display:block}
+.escmatbt{display:flex;gap:8px;flex-wrap:wrap}
+.escmatbt label{cursor:pointer}
+.esclarqs{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.escarqit{font-size:.85rem;background:var(--bg);border:1px solid var(--line);border-radius:99px;padding:3px 4px 3px 10px}
+.escarqit button{border:0;background:none;cursor:pointer;color:var(--muted);font-size:1rem;padding:0 4px}
 /* avisos da escola */
 .escavw{max-width:760px}
 .escavtxt h3{font-size:1.1rem}
@@ -5267,6 +5280,7 @@ if ('serviceWorker' in navigator) {
   var box=null, dados=[], sel=0, aberto={}, codPre='';
   var grupos=[], denuncias=[], chat=null, chatTimer=null, exemploOk={}, pendChat=null;
   var avisos=[], avisosEsc=[], avAb=null, avisoTimer=null, pendAviso=null;
+  var mats=[], matAb=null, pendMat=null;
   var PAPEL={aluno:'Aluno(a)',responsavel:'Responsável',professor:'Professor(a)',coordenacao:'Coordenação'};
   var ICO={aluno:'🎒',responsavel:'👨‍👩‍👧',professor:'🧑‍🏫',coordenacao:'🏫'};
   function E(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
@@ -5283,8 +5297,8 @@ if ('serviceWorker' in navigator) {
     if(!box) return Promise.resolve();
     if(!logado()){ box.innerHTML='<div class="escvazio">Entre na sua conta para ver a sua escola.</div>'; return Promise.resolve(); }
     if(!dados.length) box.innerHTML='<div class="escvazio">Carregando…</div>';
-    return Promise.all([rpc('escola_painel'), rpc('chat_grupos').catch(function(){ return []; }), rpc('avisos_meus').catch(function(){ return []; })]).then(function(r){
-      dados=Array.isArray(r[0])?r[0]:[]; grupos=Array.isArray(r[1])?r[1]:[]; avisos=Array.isArray(r[2])?r[2]:[]; if(sel>=dados.length) sel=0;
+    return Promise.all([rpc('escola_painel'), rpc('chat_grupos').catch(function(){ return []; }), rpc('avisos_meus').catch(function(){ return []; }), rpc('materiais_lista').catch(function(){ return null; })]).then(function(r){
+      dados=Array.isArray(r[0])?r[0]:[]; grupos=Array.isArray(r[1])?r[1]:[]; avisos=Array.isArray(r[2])?r[2]:[]; if(Array.isArray(r[3])) guardaMats(r[3]); if(sel>=dados.length) sel=0;
       var m=atual(); denuncias=[]; avisosEsc=[];
       if(!m||m.papel!=='coordenacao') return;
       if(m.escola.modelo&&!exemploOk[m.escola.id]){ // escola de exemplo: põe umas conversas para mostrar (só se o grupo estiver vazio)
@@ -5297,6 +5311,7 @@ if ('serviceWorker' in navigator) {
     }).then(function(){
       if(pendChat){ var p=pendChat; pendChat=null; if(abrirPorTitulo(p)) return; }
       if(pendAviso){ var q=pendAviso; pendAviso=null; if(abrirAvisoPorTitulo(q)) return; }
+      if(pendMat!=null){ var pm=pendMat; pendMat=null; abrirMateriais(pm); return; }
       if(!ocupado()) desenhar();
     },function(e){ if(!ocupado()) box.innerHTML='<div class="escvazio">⚠️ '+E(e.message)+'</div>'; });
   }
@@ -5351,6 +5366,9 @@ if ('serviceWorker' in navigator) {
     var nv=avisosEsc.reduce(function(n,a){ return n+(+a.novas||0); },0);
     h+=secao('avisos','📢 Avisos da escola',avisosEsc.length+' enviado'+(avisosEsc.length===1?'':'s')+(nv?' · <b class="escnovas">'+nv+' resposta'+(nv===1?'':'s')+' nova'+(nv===1?'':'s')+'</b>':''),
       '<button type="button" class="escbtn escadd" data-ea="novoaviso">＋ Novo aviso</button>'+listaAvisosEsc());
+    var ml=mats.filter(function(x){ return x.escola_id===m.escola.id; });
+    h+=secao('mats','📚 Material das turmas',ml.length+' material'+(ml.length===1?'':'is'),
+      '<button type="button" class="escbtn escadd" data-ea="matnovo">＋ Enviar material</button>'+listaMats(ml,true));
     var gs=grupos.filter(function(g){ return g.escola_id===m.escola.id; }), nn=gs.filter(nova).length;
     if(gs.length) h+=secao('grupos','💬 Grupos das turmas',gs.length+' grupo'+(gs.length===1?'':'s')+(nn?' · <b class="escnovas">'+nn+' com novidade</b>':''),listaGrupos(gs));
     var h0=h; h='';
@@ -5385,7 +5403,7 @@ if ('serviceWorker' in navigator) {
     var t=m.turma, h='<div class="esccard"><h3>🎒 Minha turma: '+(t?E(t.nome)+(t.turno?' · '+E(t.turno):''):'ainda sem turma')+'</h3>';
     h+='<p class="escdim">Colegas ('+(m.colegas||[]).length+')</p>'+tags(m.colegas);
     h+='<p class="escdim" style="margin-top:10px">Professores</p><ul class="esclist">'+((m.professores||[]).map(function(p){ return '<li>'+E(p.nome)+(p.materia?' <span class="escdim">· '+E(p.materia)+'</span>':'')+'</li>'; }).join('')||'<li class="escdim">nenhum ainda</li>')+'</ul></div>';
-    return h+avisosHTML(m)+gruposHTML(m,'turma')+embreve([['📚 Material e simulados','Os impressos dos professores e simulados feitos pela IA, com a explicação de cada resposta.']]);
+    return h+avisosHTML(m)+matsHTML(m)+gruposHTML(m,'turma')+embreve([['📝 Simulados','Simulados feitos pela IA a partir do material dos professores, com a explicação de cada resposta.']]);
   }
   function telaResp(m){
     var f=m.filho||{}, t=f.turma, pn=E(primeiro(f.nome));
@@ -5401,9 +5419,10 @@ if ('serviceWorker' in navigator) {
   }
   function telaProf(m){
     var h='';
-    (m.turmas||[]).forEach(function(t){ h+='<div class="esccard"><h3>📚 '+E(t.nome)+(t.turno?' <span class="escdim">· '+E(t.turno)+'</span>':'')+'</h3><p class="escdim">'+(m.materia?E(m.materia)+' · ':'')+t.alunos.length+' aluno'+(t.alunos.length===1?'':'s')+'</p>'+tags(t.alunos)+'</div>'; });
+    (m.turmas||[]).forEach(function(t){ h+='<div class="esccard"><h3>📚 '+E(t.nome)+(t.turno?' <span class="escdim">· '+E(t.turno)+'</span>':'')+'</h3><p class="escdim">'+(m.materia?E(m.materia)+' · ':'')+t.alunos.length+' aluno'+(t.alunos.length===1?'':'s')+'</p>'+tags(t.alunos)
+      +(t.id?'<button type="button" class="escbtn" data-ea="matnovo" data-t="'+t.id+'" style="margin-top:10px">📎 Enviar material para esta turma</button>':'')+'</div>'; });
     if(!h) h='<div class="escvazio">A coordenação ainda não ligou você a nenhuma turma.</div>';
-    return h+gruposHTML(m,'turma')+embreve([['📎 Enviar material','Fotografe o impresso e ele aparece no app de toda a turma.'],['📝 Simulados da turma','Revisar e liberar os simulados feitos pela IA.']]);
+    return h+matsHTML(m,true)+gruposHTML(m,'turma')+embreve([['📝 Simulados da turma','Revisar e liberar os simulados feitos pela IA.']]);
   }
 
   // ---------- grupos (lista) ----------
@@ -5466,8 +5485,8 @@ if ('serviceWorker' in navigator) {
   // a conversa ocupa o resto da tela, deixando livre embaixo o lugar dos botões flutuantes (Página anterior e microfone)
   function ajusta(){ var c=box&&box.querySelector('.escchat'); if(!c) return; var top=c.getBoundingClientRect().top+(window.pageYOffset||0); c.style.height=Math.max(240,window.innerHeight-top-84)+'px'; var en=c.querySelector('.escenvio'); if(en&&en.getBoundingClientRect().bottom>window.innerHeight-70) window.scrollBy(0,en.getBoundingClientRect().bottom-window.innerHeight+80); }
   window.addEventListener('resize',function(){ if(chat) ajusta(); });
-  function pararTudo(){ chat=null; clearInterval(chatTimer); avAb=null; clearInterval(avisoTimer); }
-  function ocupado(){ return !!(chat||avAb); }   // conversa ou aviso aberto: não redesenhar a tela por baixo
+  function pararTudo(){ chat=null; clearInterval(chatTimer); avAb=null; clearInterval(avisoTimer); matAb=null; }
+  function ocupado(){ return !!(chat||avAb||matAb); }   // conversa ou aviso aberto: não redesenhar a tela por baixo
   function sairChat(){ pararTudo(); desenhar(); carregar(); window.scrollTo({top:0}); }
 
   // ---------- avisos da escola ----------
@@ -5567,6 +5586,107 @@ if ('serviceWorker' in navigator) {
     var a=avAb;
     ligar(d,function(){ return rpc('aviso_responder_escola',{p_aviso:a.id,p_membro:mid,p_texto:d.querySelector('#efTx').value}).then(function(){ if(avAb===a) buscarDetalhe(); }); });
   }
+  // ---------- material complementar ----------
+  function sem(t){ return String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\s+/g,' ').trim(); }
+  function guardaMats(l){
+    var antes=JSON.stringify(mats.map(function(x){ return x.id; })); mats=l||[];
+    if(JSON.stringify(mats.map(function(x){ return x.id; }))!==antes&&window.bdRenderTree) window.bdRenderTree();
+  }
+  // usado pela árvore: quantos materiais da escola há para uma matéria (pelo nome)
+  window.bdEscMatQtd=function(nome){ var n=sem(nome); return n?mats.filter(function(x){ return sem(x.materia)===n; }).length:0; };
+  function icoArq(a){ return /^image\//.test(a.tipo)?'🖼':(/pdf/.test(a.tipo)?'📄':'📝'); }
+  function listaMats(l){
+    if(!l.length) return '<div class="escdim" style="padding:6px 2px">Nenhum material ainda.</div>';
+    return '<div class="escgrupos" style="margin-top:8px">'+l.map(function(x){ var n=(x.arquivos||[]).length;
+      return '<button type="button" class="escgrupo" data-ea="mat" data-id="'+x.id+'"><span class="escgi">📚</span>'
+        +'<span class="escgt"><b>'+E(x.titulo)+'</b><small>'+E(x.materia)+' · '+E(x.turma)+' · '+E(x.autor)+' · '+n+' arquivo'+(n===1?'':'s')+'</small></span>'
+        +'<span class="escgq">'+hora(x.em)+'</span></button>'; }).join('')+'</div>';
+  }
+  function matsHTML(m,doProf){
+    var l=mats.filter(function(x){ return x.escola_id===m.escola.id; });
+    var h='<h2 class="esch2">📚 Material da escola</h2>';
+    if(!l.length) return h+'<div class="escdim" style="padding:2px 2px 6px">'+(doProf?'Nenhum material enviado ainda. Toque em “📎 Enviar material” na turma.':'Nenhum material ainda. Quando os professores enviarem, ele aparece aqui e na matéria.')+'</div>';
+    var por={}; l.forEach(function(x){ (por[x.materia]=por[x.materia]||[]).push(x); });
+    return h+Object.keys(por).sort(function(a,b){ return a.localeCompare(b); }).map(function(k){
+      return '<div class="escdim escmatg">'+E(k)+'</div>'+listaMats(por[k]); }).join('');
+  }
+  // tela "Material da escola" (todas as matérias ou só uma, vinda da árvore)
+  function abrirMateriais(filtro){
+    pararTudo(); matAb={filtro:filtro||''};
+    var l=mats.filter(function(x){ return !filtro||sem(x.materia)===sem(filtro); });
+    box.innerHTML='<div class="escavw"><div class="escchead"><button type="button" class="escbtn2" data-ea="sair">← Voltar</button><div class="escctit"><b>🏫 Material da escola</b><small>'+E(filtro||'Todas as matérias')+'</small></div></div>'
+      +(l.length?listaMats(l):'<div class="escvazio">Nenhum material da escola para esta matéria ainda.</div>')+'</div>';
+    window.scrollTo({top:0});
+  }
+  function verMaterial(id){
+    var x=mats.filter(function(y){ return String(y.id)===String(id); })[0]; if(!x) return;
+    var d=janela('📚 '+E(x.titulo),'<p class="escdim" style="margin-top:0">'+E(x.materia)+' · '+E(x.turma)+' · '+E(x.autor)+' · '+dataHora(x.em)+'</p>'
+      +(x.descricao?'<div class="esctxt" style="margin-bottom:10px">'+linkify(x.descricao)+'</div>':'')
+      +'<div class="escarqs">'+(x.arquivos||[]).map(function(a,i){ return /^image\//.test(a.tipo)
+          ?'<div class="escfoto" data-i="'+i+'"><div class="escdim">Carregando foto…</div></div>'
+          :'<button type="button" class="escbtn2" data-arq="'+i+'">'+icoArq(a)+' Abrir '+E(a.nome)+'</button>'; }).join('')+'</div>',
+      (x.pode_apagar?'<button type="button" class="escbtn2" data-apg>🗑 Apagar material</button>':'')+'<button type="button" class="escbtn2" data-x>Fechar</button>');
+    d.querySelector('.escmbox').classList.add('escmlarga');
+    d.querySelector('[data-x]').addEventListener('click',fechar);
+    d.addEventListener('keydown',function(e){ if(e.key==='Escape') fechar(); });
+    var st=window.bdSb.storage.from('escola-material');
+    (x.arquivos||[]).forEach(function(a,i){ if(!/^image\//.test(a.tipo)) return;
+      st.createSignedUrl(a.path,3600).then(function(r){ var el=d.querySelector('.escfoto[data-i="'+i+'"]'); if(!el) return;
+        el.innerHTML=r&&r.data&&r.data.signedUrl?'<a href="'+E(r.data.signedUrl)+'" target="_blank" rel="noopener"><img src="'+E(r.data.signedUrl)+'" alt="'+E(a.nome)+'"></a>':'<div class="escdim">Não consegui abrir a foto.</div>'; }); });
+    d.addEventListener('click',function(e){
+      var b=e.target.closest('[data-arq]');
+      if(b){ var a=x.arquivos[+b.getAttribute('data-arq')], w=window.open('','_blank');
+        st.createSignedUrl(a.path,3600).then(function(r){ if(r&&r.data&&r.data.signedUrl){ if(w) w.location=r.data.signedUrl; else location.href=r.data.signedUrl; } else { if(w) w.close(); aviso('Não consegui abrir o arquivo.'); } }); }
+      if(e.target.closest('[data-apg]')){ if(!confirm('Apagar o material “'+x.titulo+'”? Ele some do app de toda a turma.')) return;
+        rpc('material_apagar',{p_id:x.id}).then(function(arqs){ var ps=(arqs||[]).map(function(a){ return a.path; }); if(ps.length) st.remove(ps).catch(function(){}); fechar(); aviso('Material apagado'); return carregar(); },function(er){ aviso(er.message); }); }
+    });
+  }
+  // foto do celular fica grande: reduz para no máximo 1600 px antes de enviar
+  function comprimir(f){
+    if(!/^image\/(jpeg|png|webp)/.test(f.type)) return Promise.resolve(f);
+    return new Promise(function(ok){ var img=new Image(), u=URL.createObjectURL(f);
+      img.onload=function(){ var k=Math.min(1,1600/Math.max(img.width,img.height)), c=document.createElement('canvas'); c.width=Math.round(img.width*k); c.height=Math.round(img.height*k);
+        c.getContext('2d').drawImage(img,0,0,c.width,c.height); URL.revokeObjectURL(u);
+        c.toBlob(function(b){ ok(b&&b.size<f.size?new File([b],f.name.replace(/\.[^.]+$/,'')+'.jpg',{type:'image/jpeg'}):f); },'image/jpeg',0.82); };
+      img.onerror=function(){ URL.revokeObjectURL(u); ok(f); }; img.src=u; });
+  }
+  function formMaterial(turmaPre){
+    var m=atual(), ehProf=m.papel==='professor';
+    var tur=(m.turmas||[]).filter(function(t){ return t.id; });
+    if(!tur.length){ aviso('Nenhuma turma para enviar material.'); return; }
+    var arqs=[];
+    var d=janela('📎 Enviar material',
+      campo('Turma','<select id="efTurma">'+opts(tur.map(function(t){ return [t.id,t.nome+(t.turno?' · '+t.turno:'')]; }),turmaPre||tur[0].id)+'</select>')
+      +campo('Matéria <small>(o mesmo nome que os alunos usam, ex.: Matemática)</small>','<input id="efMat" maxlength="60" value="'+E(ehProf?(m.materia||''):'')+'" placeholder="Ex.: Matemática" autocomplete="off">')
+      +campo('Título','<input id="efTit" maxlength="120" placeholder="Ex.: Lista de exercícios – funções" autocomplete="off">')
+      +campo('Descrição <small>(opcional)</small>','<textarea id="efTx" rows="3" maxlength="2000" placeholder="Ex.: Fazer até sexta. Questões 1 a 10."></textarea>')
+      +'<div class="escf"><span>Arquivos</span><div class="escmatbt"><label class="escbtn">📷 Tirar foto<input type="file" id="efCam" accept="image/*" capture="environment" multiple hidden></label>'
+      +'<label class="escbtn2">📎 Escolher arquivos<input type="file" id="efArq" accept="image/*,.pdf,.doc,.docx" multiple hidden></label></div><div id="efLista" class="esclarqs"></div>'
+      +'<small class="escdim">Fotos do impresso (pode tirar várias, uma por página), PDF ou Word. Até 15 MB por arquivo.</small></div>'
+      +'<div id="efProg" class="escdim"></div>',
+      '<button type="button" class="escbtn" data-ok>📤 Enviar para a turma</button><button type="button" class="escbtn2" data-x>Cancelar</button>');
+    d.querySelector('.escmbox').classList.add('escmlarga');
+    function lista(){ d.querySelector('#efLista').innerHTML=arqs.map(function(f,i){ return '<span class="escarqit">'+(/^image\//.test(f.type)?'🖼':(/pdf/.test(f.type)?'📄':'📝'))+' '+E(f.name)+' <button type="button" data-rm="'+i+'" title="Tirar">×</button></span>'; }).join(''); }
+    function pega(inp){ [].forEach.call(inp.files||[],function(f){ if(f.size>15*1024*1024){ aviso(f.name+' passa de 15 MB'); return; } arqs.push(f); }); inp.value=''; lista(); }
+    d.querySelector('#efCam').addEventListener('change',function(){ pega(this); });
+    d.querySelector('#efArq').addEventListener('change',function(){ pega(this); });
+    d.querySelector('#efLista').addEventListener('click',function(e){ var b=e.target.closest('[data-rm]'); if(b){ arqs.splice(+b.getAttribute('data-rm'),1); lista(); } });
+    ligar(d,function(){
+      var t=d.querySelector('#efTurma').value, mat=d.querySelector('#efMat').value.trim(), tit=d.querySelector('#efTit').value.trim(), prog=d.querySelector('#efProg');
+      if(!mat) return Promise.reject(new Error('Escreva a matéria.'));
+      if(!tit) return Promise.reject(new Error('Escreva o título.'));
+      if(!arqs.length) return Promise.reject(new Error('Tire uma foto ou escolha um arquivo.'));
+      var st=window.bdSb.storage.from('escola-material'), feitos=[], base=m.escola.id+'/'+t+'/'+Date.now().toString(36);
+      return arqs.reduce(function(p,f,i){ return p.then(function(){ prog.textContent='Enviando '+(i+1)+' de '+arqs.length+'…'; return comprimir(f); }).then(function(g){
+          var nome=sem(g.name).replace(/[^a-z0-9.\-]+/g,'-').slice(-60)||('arquivo'+i), path=base+'-'+i+'-'+nome;
+          return st.upload(path,g,{contentType:g.type||'application/octet-stream',upsert:false}).then(function(r){ if(r&&r.error) throw new Error('Não consegui enviar '+g.name+': '+r.error.message);
+            feitos.push({path:path,nome:g.name,tipo:g.type||'',tam:g.size}); }); }); },Promise.resolve())
+        .then(function(){ prog.textContent='Salvando…'; return rpc('material_enviar',{p_escola:m.escola.id,p_turma:t,p_materia:mat,p_titulo:tit,p_descricao:d.querySelector('#efTx').value,p_arquivos:feitos}); })
+        .then(function(){ aberto.mats=true; setTimeout(function(){ aviso('Material enviado para a turma'); },700); },
+          function(er){ prog.textContent=''; if(feitos.length) st.remove(feitos.map(function(a){ return a.path; })).catch(function(){}); throw er; });
+    });
+  }
+
   function formAviso(){
     var m=atual(), tur=m.turmas||[], als=(m.membros||[]).filter(function(a){ return a.papel==='aluno'&&!a.bloqueado; }).sort(function(a,b){ return a.nome.localeCompare(b.nome); });
     var d=janela('📢 Novo aviso',
@@ -5751,6 +5871,8 @@ if ('serviceWorker' in navigator) {
     if(a==='chat'){ abrirChat(b.getAttribute('data-t'),b.getAttribute('data-g')); return; }
     if(a==='sair'){ sairChat(); return; }
     if(a==='aviso'){ abrirAviso(id,b.getAttribute('data-m')); return; }
+    if(a==='mat'){ verMaterial(id); return; }
+    if(a==='matnovo'){ formMaterial(b.getAttribute('data-t')); return; }
     if(a==='avenviar'){ enviarResposta(); return; }
     if(a==='novoaviso'){ formAviso(); return; }
     if(a==='avisoesc'){ detalheAviso(id); return; }
@@ -5803,6 +5925,14 @@ if ('serviceWorker' in navigator) {
   window.bdEscola={ abrir:function(el){ if(box!==el){ box=el; box.addEventListener('click',clique); } pararTudo(); if(dados.length) desenhar(); carregar(); } };
   // tocar no aviso "📢 ..." abre direto o aviso
   window.bdAbrirAviso=function(t){ pendAviso=t; if(window.bdAbrirEscola) window.bdAbrirEscola(); };
+  // árvore → matéria → "🏫 Material da escola"
+  window.bdAbrirMaterial=function(materia){ pendMat=materia||''; if(window.bdAbrirEscola) window.bdAbrirEscola(); };
+  // ao abrir o app, já busca os materiais (para aparecerem dentro das matérias) e confere de novo a cada 10 min
+  (function buscaMats(n){
+    if(!logado()){ if(n<200) setTimeout(function(){ buscaMats(n+1); },2000); return; }
+    rpc('materiais_lista').then(function(l){ if(Array.isArray(l)) guardaMats(l); },function(){});
+    setTimeout(function(){ buscaMats(0); },10*60*1000);
+  })(0);
   // tocar no aviso "💬 Turma · Grupo..." abre direto a conversa
   window.bdAbrirChat=function(t){ pendChat=t; if(window.bdAbrirEscola) window.bdAbrirEscola(); };
 })();
