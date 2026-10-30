@@ -2926,6 +2926,7 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
   })();
   // tocar na notificação: abre a agenda certa e destaca o compromisso
   function agAbreNotif(n){
+    if(n&&/^\uD83D\uDCAC/.test(n.t||'')&&window.bdAbrirChat){ window.bdAbrirChat(n.t); return; } // aviso do grupo
     n=n||{}; var t=String(n.t||''), b=String(n.b||''), g=String(n.g||'');
     if(/^(✨|☀)/.test(t)||!t){ var hh=agHoje(), hq=getAgenda().filter(function(y){ return y&&!y.del&&y.data===hh; }).map(agDe); openAgenda(hq.indexOf(agQual)>=0||!hq.length?agQual:hq[0]); return; }
     var a=getAgenda().filter(function(x){ return x&&!x.del; }), x=null;
@@ -5138,10 +5139,14 @@ if ('serviceWorker' in navigator) {
 .escgrp{border:1px solid var(--line);border-radius:12px;background:var(--surface);margin:8px 0;overflow:hidden}
 .escgh{display:flex;align-items:center;gap:8px;width:100%;padding:12px 14px;border:0;background:none;color:var(--fg);font-family:var(--font-head);font-weight:700;font-size:1rem;cursor:pointer;text-align:left}
 .esccar{color:var(--accent);font-size:.72rem;transition:transform .15s}
-.escgrp.open .esccar{transform:rotate(90deg)}
+.escgrp.open>.escgh .esccar{transform:rotate(90deg)}
 .esccount{margin-left:auto;font-weight:500;font-size:.82rem;color:var(--muted)}
 .escgb{display:none;padding:0 12px 12px}
-.escgrp.open .escgb{display:block}
+.escgrp.open>.escgb{display:block}
+.escsec{margin:12px 0}
+.escsec>.escgh{text-transform:uppercase;letter-spacing:.04em;font-size:.92rem;background:var(--accent-soft)}
+.escsec>.escgb{padding-top:10px}
+.escsec .escgrp{background:var(--bg)}
 .escacts{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 8px}
 .escacts .escbtn2{font-size:.8rem;padding:5px 10px}
 .escpes{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 4px;border-top:1px solid var(--line)}
@@ -5173,13 +5178,58 @@ if ('serviceWorker' in navigator) {
 .escchecks input{width:auto}
 .escmbtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
 .esccodigo{font-family:var(--font-head);font-weight:800;font-size:1.8rem;letter-spacing:.25em;text-align:center;color:var(--accent);margin:4px 0 10px}
-@media (max-width:560px){ .escnums b{font-size:1.15rem} .escnums div{font-size:.72rem} }
+/* grupos */
+.escgrupos{display:flex;flex-direction:column;gap:8px}
+.escgrp .escgrupos{margin-top:2px}
+.escgrupo{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--fg);cursor:pointer;font:inherit}
+.escgrupo.nova{border-color:var(--accent)}
+.escgi{font-size:1.4rem;flex:0 0 auto}
+.escgt{flex:1;min-width:0;display:flex;flex-direction:column}
+.escgt b{font-family:var(--font-head);font-size:.95rem}
+.escgt small{color:var(--muted);font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.escgq{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-end;gap:3px;font-family:var(--font-head);font-size:.72rem;color:var(--muted)}
+.escgq i{font-style:normal;font-weight:700;background:var(--accent);color:#fff;border-radius:99px;padding:1px 8px}
+.escnovas{color:var(--accent)}
+.escden{border-color:#c62828}
+.escdenit{border-top:1px solid var(--line);padding:8px 0 4px;font-size:.92rem}
+.escdenit .escacts{margin:6px 0 0}
+/* conversa */
+.escchat{display:flex;flex-direction:column;height:calc(100vh - 210px);height:calc(100dvh - 210px);min-height:360px;max-width:760px}
+.escchead{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.escctit{display:flex;flex-direction:column;min-width:0}
+.escctit b{font-family:var(--font-head);font-size:1.02rem}
+.escctit small{color:var(--muted);font-family:var(--font-head);font-size:.78rem}
+.escregras{font-size:.8rem;color:var(--muted);background:var(--accent-soft);border-radius:8px;padding:6px 10px;margin-bottom:8px;font-family:var(--font-head)}
+.escmsgs{flex:1;overflow-y:auto;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 10px 4px;overscroll-behavior:contain}
+.escdia{text-align:center;margin:10px 0 6px}
+.escdia span{font-family:var(--font-head);font-size:.72rem;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:2px 10px}
+.escmsg{display:flex;margin-top:8px}
+.escmsg.seg{margin-top:2px}
+.escmsg.minha{justify-content:flex-end}
+.escbal{max-width:82%;background:var(--surface);border:1px solid var(--line);border-radius:14px 14px 14px 4px;padding:6px 10px 4px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.escmsg.minha .escbal{background:var(--accent-soft);border-radius:14px 14px 4px 14px}
+.escaut{font-family:var(--font-head);font-weight:700;font-size:.78rem;color:var(--accent)}
+.esctag{font-weight:600;font-size:.66rem;background:var(--mark);color:var(--fg);border-radius:99px;padding:0 6px;margin-left:3px}
+.esctxt{font-size:.98rem;line-height:1.45;word-wrap:break-word;overflow-wrap:anywhere}
+.esctxt a{color:var(--accent)}
+.escapag{color:var(--muted);font-size:.88rem}
+.escmeta{display:flex;justify-content:flex-end;align-items:center;gap:6px;font-family:var(--font-head);font-size:.68rem;color:var(--muted)}
+.escmenu{border:0;background:none;color:var(--muted);cursor:pointer;font-size:1rem;line-height:1;padding:0 2px}
+.escpausa{margin-top:8px;font-size:.85rem;font-family:var(--font-head);background:var(--mark);border-radius:8px;padding:6px 10px}
+.escenvio{display:flex;gap:8px;align-items:flex-end;margin-top:8px}
+.escenvio textarea{flex:1;resize:none;min-height:42px;max-height:140px;padding:9px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--fg);font-size:1rem;font-family:inherit;line-height:1.4}
+.escenvio .escbtn{height:42px}
+.escmsgprev{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:.92rem;max-height:160px;overflow:auto}
+.escmopts{display:flex;flex-direction:column;gap:6px;width:100%}
+.escmopts .escbtn2{text-align:left}
+@media (max-width:560px){ .escnums b{font-size:1.15rem} .escnums div{font-size:.72rem} .escchat{height:calc(100dvh - 190px)} .escbal{max-width:88%} }
 </style>
 <script>
 /* ===== 🏫 Minha escola: turmas, alunos, responsáveis, professores e coordenação =====
    Dados no Supabase (tabelas escolas/turmas/membros), sempre pelas funções escola_* (SQL em _montagem/turmas-escola.sql). */
 (function(){
   var box=null, dados=[], sel=0, aberto={}, codPre='';
+  var grupos=[], denuncias=[], chat=null, chatTimer=null, exemploOk={}, pendChat=null;
   var PAPEL={aluno:'Aluno(a)',responsavel:'Responsável',professor:'Professor(a)',coordenacao:'Coordenação'};
   var ICO={aluno:'🎒',responsavel:'👨‍👩‍👧',professor:'🧑‍🏫',coordenacao:'🏫'};
   function E(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
@@ -5196,8 +5246,19 @@ if ('serviceWorker' in navigator) {
     if(!box) return Promise.resolve();
     if(!logado()){ box.innerHTML='<div class="escvazio">Entre na sua conta para ver a sua escola.</div>'; return Promise.resolve(); }
     if(!dados.length) box.innerHTML='<div class="escvazio">Carregando…</div>';
-    return rpc('escola_painel').then(function(d){ dados=Array.isArray(d)?d:[]; if(sel>=dados.length) sel=0; desenhar(); },
-      function(e){ box.innerHTML='<div class="escvazio">⚠️ '+E(e.message)+'</div>'; });
+    return Promise.all([rpc('escola_painel'), rpc('chat_grupos').catch(function(){ return []; })]).then(function(r){
+      dados=Array.isArray(r[0])?r[0]:[]; grupos=Array.isArray(r[1])?r[1]:[]; if(sel>=dados.length) sel=0;
+      var m=atual(); denuncias=[];
+      if(!m||m.papel!=='coordenacao') return;
+      if(m.escola.modelo&&!exemploOk[m.escola.id]){ // escola de exemplo: põe umas conversas para mostrar (só se o grupo estiver vazio)
+        exemploOk[m.escola.id]=1;
+        rpc('chat_exemplo',{p_escola:m.escola.id}).then(function(){ return rpc('chat_grupos'); }).then(function(g){ if(Array.isArray(g)){ grupos=g; if(!chat) desenhar(); } },function(){});
+      }
+      return rpc('chat_denuncias',{p_escola:m.escola.id}).then(function(d){ denuncias=Array.isArray(d)?d:[]; },function(){});
+    }).then(function(){
+      if(pendChat){ var p=pendChat; pendChat=null; if(abrirPorTitulo(p)) return; }
+      if(!chat) desenhar();
+    },function(e){ if(!chat) box.innerHTML='<div class="escvazio">⚠️ '+E(e.message)+'</div>'; });
   }
   function atual(){ return dados[sel]||null; }
   function pessoa(id){ var m=atual(); return ((m&&m.membros)||[]).filter(function(x){ return x.id===id; })[0]||null; }
@@ -5234,6 +5295,8 @@ if ('serviceWorker' in navigator) {
       +'<button type="button" class="escib" title="Editar" data-ea="editar" data-id="'+x.id+'">✏️</button>'
       +(x.eu?'':'<button type="button" class="escib" title="Excluir" data-ea="del" data-id="'+x.id+'">🗑</button>')+'</div></div>';
   }
+  // título em sanfona (abre e fecha como a árvore do app); fica lembrado enquanto o app está aberto
+  function secao(k,tit,cont,html){ return '<div class="escgrp escsec'+(aberto[k]?' open':'')+'"><button type="button" class="escgh" data-ea="tog" data-k="'+k+'"><span class="esccar">▶</span>'+tit+'<span class="esccount">'+cont+'</span></button><div class="escgb">'+html+'</div></div>'; }
   function telaCoord(m){
     var tur=m.turmas||[], mem=m.membros||[];
     function de(p){ return mem.filter(function(x){ return x.papel===p; }); }
@@ -5242,7 +5305,10 @@ if ('serviceWorker' in navigator) {
     h+='<div class="esccard escgp"><label class="escsw" title="Liga ou desliga"><input type="checkbox" data-ea="gp"'+(gp?' checked':'')+'><span></span></label>'
       +'<div><h3>👨‍👩‍👧 Grupo dos pais da turma: '+(gp?'<b class="escok">liberado</b>':'<b class="escoff">desligado</b>')+'</h3>'
       +'<p>Quando liberado, os responsáveis de cada turma veem uns aos outros e têm um grupo só deles, separado do grupo dos alunos. Com ou sem o grupo, cada responsável vê só o próprio filho e a escola.</p></div></div>';
-    h+='<h2 class="esch2">📚 Turmas</h2>';
+    h+=denunciasHTML();
+    var gs=grupos.filter(function(g){ return g.escola_id===m.escola.id; }), nn=gs.filter(nova).length;
+    if(gs.length) h+=secao('grupos','💬 Grupos das turmas',gs.length+' grupo'+(gs.length===1?'':'s')+(nn?' · <b class="escnovas">'+nn+' com novidade</b>':''),listaGrupos(gs));
+    var h0=h; h='';
     tur.forEach(function(t){
       var as=al.filter(function(a){ return a.turma_id===t.id; });
       var ps=pr.filter(function(p){ return (p.turmas||[]).indexOf(t.id)>=0; });
@@ -5260,12 +5326,11 @@ if ('serviceWorker' in navigator) {
     });
     if(!tur.length) h+='<div class="escdim">Nenhuma turma ainda.</div>';
     h+='<button type="button" class="escbtn escadd" data-ea="turma">＋ Nova turma</button>';
+    h=h0+secao('turmas','📚 Turmas',tur.length+' turma'+(tur.length===1?'':'s'),h);
     var sem=al.filter(function(a){ return !a.turma_id || !tur.some(function(t){ return t.id===a.turma_id; }); });
-    if(sem.length){ h+='<h2 class="esch2">🎒 Alunos sem turma</h2>'; sem.forEach(function(a){ h+=linha(a); rs.filter(function(r){ return r.aluno_id===a.id; }).forEach(function(r){ h+=linha(r,true); }); }); }
-    h+='<h2 class="esch2">🧑‍🏫 Professores</h2>'; pr.forEach(function(p){ h+=linha(p); });
-    h+='<button type="button" class="escbtn escadd" data-ea="novo" data-papel="professor">＋ Professor</button>';
-    h+='<h2 class="esch2">🏫 Coordenação</h2>'; co.forEach(function(p){ h+=linha(p); });
-    h+='<button type="button" class="escbtn escadd" data-ea="novo" data-papel="coordenacao">＋ Coordenação</button>';
+    if(sem.length){ var hs=''; sem.forEach(function(a){ hs+=linha(a); rs.filter(function(r){ return r.aluno_id===a.id; }).forEach(function(r){ hs+=linha(r,true); }); }); h+=secao('semturma','🎒 Alunos sem turma',sem.length+' aluno'+(sem.length===1?'':'s'),hs); }
+    h+=secao('profs','🧑‍🏫 Professores',pr.length+' professor'+(pr.length===1?'':'es'),pr.map(function(p){ return linha(p); }).join('')+'<button type="button" class="escbtn escadd" data-ea="novo" data-papel="professor">＋ Professor</button>');
+    h+=secao('coord','🏫 Coordenação',co.length+' pessoa'+(co.length===1?'':'s'),co.map(function(p){ return linha(p); }).join('')+'<button type="button" class="escbtn escadd" data-ea="novo" data-papel="coordenacao">＋ Coordenação</button>');
     if(m.escola.modelo) h+='<div class="esccard escaviso"><h3>🧪 Esta é a escola de exemplo</h3><p>Os nomes são inventados. Para ver o app como um aluno ou um responsável vê, toque em 📨 ao lado da pessoa, copie o convite e abra com <b>outra conta</b> (outro celular ou janela anônima).</p><button type="button" class="escbtn2" data-ea="apagar">🗑 Apagar a escola de exemplo</button></div>';
     return h;
   }
@@ -5275,7 +5340,7 @@ if ('serviceWorker' in navigator) {
     var t=m.turma, h='<div class="esccard"><h3>🎒 Minha turma: '+(t?E(t.nome)+(t.turno?' · '+E(t.turno):''):'ainda sem turma')+'</h3>';
     h+='<p class="escdim">Colegas ('+(m.colegas||[]).length+')</p>'+tags(m.colegas);
     h+='<p class="escdim" style="margin-top:10px">Professores</p><ul class="esclist">'+((m.professores||[]).map(function(p){ return '<li>'+E(p.nome)+(p.materia?' <span class="escdim">· '+E(p.materia)+'</span>':'')+'</li>'; }).join('')||'<li class="escdim">nenhum ainda</li>')+'</ul></div>';
-    return h+embreve([['💬 Grupo da turma','Conversa com os colegas, os professores e a escola, com filtro de palavrões.'],['📢 Canal da escola','Avisos e conversa direta com a coordenação.'],['📚 Material e simulados','Os impressos dos professores e simulados feitos pela IA, com a explicação de cada resposta.']]);
+    return h+gruposHTML(m,'turma')+embreve([['📢 Canal da escola','Avisos e conversa direta com a coordenação.'],['📚 Material e simulados','Os impressos dos professores e simulados feitos pela IA, com a explicação de cada resposta.']]);
   }
   function telaResp(m){
     var f=m.filho||{}, t=f.turma, pn=E(primeiro(f.nome));
@@ -5284,7 +5349,7 @@ if ('serviceWorker' in navigator) {
     var it=[['📅 Provas e prazos de '+pn,'As avaliações e os trabalhos, com aviso no celular.'],['📊 Notas dos simulados','Como '+pn+' está indo e em quais assuntos precisa de reforço.'],['📢 Falar com a escola','Avisos da escola e conversa direta com a coordenação.']];
     if(m.pais_turma){
       h+='<div class="esccard"><h3>👨‍👩‍👧 Pais da turma</h3><ul class="esclist">'+(m.pais_turma.map(function(p){ return '<li>'+E(p.nome)+' <span class="escdim">· '+E(p.parentesco||'responsável')+' de '+E(primeiro(p.filho))+'</span></li>'; }).join('')||'<li class="escdim">nenhum outro ainda</li>')+'</ul></div>';
-      it.push(['💬 Grupo dos pais da turma','Conversa entre os responsáveis da turma, liberada pela escola.']);
+      h+=gruposHTML(m,'pais');
     }
     return h+embreve(it);
   }
@@ -5292,7 +5357,137 @@ if ('serviceWorker' in navigator) {
     var h='';
     (m.turmas||[]).forEach(function(t){ h+='<div class="esccard"><h3>📚 '+E(t.nome)+(t.turno?' <span class="escdim">· '+E(t.turno)+'</span>':'')+'</h3><p class="escdim">'+(m.materia?E(m.materia)+' · ':'')+t.alunos.length+' aluno'+(t.alunos.length===1?'':'s')+'</p>'+tags(t.alunos)+'</div>'; });
     if(!h) h='<div class="escvazio">A coordenação ainda não ligou você a nenhuma turma.</div>';
-    return h+embreve([['📎 Enviar material','Fotografe o impresso e ele aparece no app de toda a turma.'],['📝 Simulados da turma','Revisar e liberar os simulados feitos pela IA.'],['💬 Grupos das turmas','Conversar com os alunos e moderar o grupo.']]);
+    return h+gruposHTML(m,'turma')+embreve([['📎 Enviar material','Fotografe o impresso e ele aparece no app de toda a turma.'],['📝 Simulados da turma','Revisar e liberar os simulados feitos pela IA.']]);
+  }
+
+  // ---------- grupos (lista) ----------
+  function lido(g){ var v=0; try{ v=+localStorage.getItem('bd_chat_lido:'+g.turma_id+':'+g.grupo)||0; }catch(_){} return v; }
+  function nova(g){ return !!g.ultima_id && g.ultima_id>lido(g); }
+  function nomeGrupo(gr){ return gr==='pais'?'Grupo dos pais':'Grupo da turma'; }
+  function tituloGrupo(t,gr){ return t+' · '+nomeGrupo(gr); }
+  function hhmm(iso){ return new Date(iso).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); }
+  function hora(iso){ var d=new Date(iso); return d.toDateString()===new Date().toDateString()?hhmm(iso):d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}); }
+  function listaGrupos(gs){
+    return '<div class="escgrupos">'+gs.map(function(g){ var nv=nova(g);
+      return '<button type="button" class="escgrupo'+(nv?' nova':'')+'" data-ea="chat" data-t="'+g.turma_id+'" data-g="'+g.grupo+'"><span class="escgi">'+(g.grupo==='pais'?'👨‍👩‍👧':'💬')+'</span>'
+        +'<span class="escgt"><b>'+E(tituloGrupo(g.turma,g.grupo))+'</b><small>'+(g.ultima_id?(g.ultima_texto!=null?E(primeiro(g.ultima_autor))+': '+E(g.ultima_texto):'🚫 mensagem apagada'):'Nenhuma mensagem ainda')+'</small></span>'
+        +'<span class="escgq">'+(g.ultima_em?hora(g.ultima_em):'')+(nv?'<i>nova</i>':'')+'</span></button>'; }).join('')+'</div>';
+  }
+  function gruposHTML(m,tipo){
+    var gs=grupos.filter(function(g){ return g.escola_id===m.escola.id&&g.grupo===tipo; });
+    return gs.length?'<h2 class="esch2">💬 '+(gs.length>1?'Grupos':nomeGrupo(tipo))+'</h2>'+listaGrupos(gs):'';
+  }
+  function denunciasHTML(){
+    if(!denuncias.length) return '';
+    return '<div class="esccard escden"><h3>🚩 Denúncias para analisar ('+denuncias.length+')</h3>'+denuncias.map(function(d){
+      return '<div class="escdenit"><div class="escdim">'+E(tituloGrupo(d.turma,d.grupo))+' · '+hora(d.em)+'</div><div><b>'+E(d.autor)+':</b> '+E(d.texto)+'</div>'
+        +'<div class="escdim">Denunciada por '+E(d.quem||'—')+(d.motivo?' · “'+E(d.motivo)+'”':'')+'</div>'
+        +'<div class="escacts"><button type="button" class="escbtn2" data-ea="denapagar" data-id="'+d.id+'">🗑 Apagar mensagem</button><button type="button" class="escbtn2" data-ea="denmanter" data-id="'+d.id+'">✔ Manter</button><button type="button" class="escbtn2" data-ea="chat" data-t="'+d.turma_id+'" data-g="'+d.grupo+'">Abrir o grupo</button></div></div>'; }).join('')+'</div>';
+  }
+
+  // ---------- conversa ----------
+  var PAL=new RegExp('(^|[^a-z])(pora|poras|caralh[a-z]*|merd[a-z]*|bost[a-z]*|put[ao]s?|putaria|puteiro|putinh[ao]s?|fod[a-z]*|fud[a-z]*|'
+    +'fdp|vsf|vtnc|tnc|tmnc|pqp|krl|crl|prr|mrd|bucet[a-z]*|bocet[a-z]*|xota|xoxota|cu|cuzao|cuzinho|arombad[a-z]*|'
+    +'viad[ao]s?|viadinh[ao]s?|bicha|vagabund[a-z]*|otari[ao]s?|imbecil|imbecis|idiota|idiotas|retardad[ao]s?|babaca|babacas|'
+    +'corn[ao]s?|punhet[a-z]*|siririca|piroca|tesao|safad[ao]s?|desgracad[ao]s?)([^a-z]|$)');
+  function palavrao(t){ // o mesmo filtro do servidor (chat_palavrao): aqui só para avisar antes de enviar
+    var s=String(t||'').toLowerCase(), A='áàâãäéèêëíìîïóòôõöúùûüçñ013457@$', B='aaaaaeeeeiiiiooooouuuucnoieastas', o='';
+    for(var i=0;i<s.length;i++){ var k=A.indexOf(s[i]); o+=k>=0?B[k]:s[i]; }
+    return PAL.test(o.replace(/([a-z])\1+/g,'$1'));
+  }
+  var TAG={professor:'Professor(a)',coordenacao:'Escola'};
+  function linkify(t){ return E(t).replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>').replace(/\n/g,'<br>'); }
+  function dia(iso){ var d=new Date(iso), h=new Date(), o=new Date(); o.setDate(h.getDate()-1);
+    if(d.toDateString()===h.toDateString()) return 'Hoje'; if(d.toDateString()===o.toDateString()) return 'Ontem';
+    return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}); }
+  function abrirPorTitulo(t){ var g=grupos.filter(function(x){ return '💬 '+tituloGrupo(x.turma,x.grupo)===t; })[0]; if(g){ abrirChat(g.turma_id,g.grupo); return true; } return false; }
+  function abrirChat(t,gr){
+    var g=grupos.filter(function(x){ return x.turma_id===t&&x.grupo===gr; })[0]||{turma:''};
+    chat={t:t,g:gr,msgs:[],ultimo:0,info:null,n:0};
+    box.innerHTML='<div class="escchat"><div class="escchead"><button type="button" class="escbtn2" data-ea="sair">← Voltar</button>'
+      +'<div class="escctit"><b>'+(gr==='pais'?'👨‍👩‍👧 ':'💬 ')+E(tituloGrupo(g.turma,gr))+'</b><small>'+E(g.escola||'')+'</small></div></div>'
+      +'<div class="escregras">🤝 Respeito sempre. Palavrões são bloqueados e a escola pode ler, apagar e pausar mensagens.</div>'
+      +'<div class="escmsgs" id="escMsgs"><div class="escvazio">Carregando…</div></div>'
+      +'<div class="escpausa" id="escPausa" hidden></div>'
+      +'<div class="escenvio"><textarea id="escTxt" rows="1" maxlength="1000" placeholder="Escreva uma mensagem" spellcheck="true" lang="pt-BR" autocapitalize="sentences"></textarea><button type="button" class="escbtn" data-ea="enviar">Enviar</button></div></div>';
+    var ta=box.querySelector('#escTxt');
+    ta.addEventListener('keydown',function(e){ if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&window.matchMedia('(pointer:fine)').matches){ e.preventDefault(); enviar(); } });
+    ta.addEventListener('input',function(){ ta.style.height='auto'; ta.style.height=Math.min(140,ta.scrollHeight)+'px'; });
+    window.scrollTo({top:0}); ajusta();
+    buscar(true);
+    clearInterval(chatTimer); chatTimer=setInterval(tique,4000);
+  }
+  // a conversa ocupa o resto da tela, deixando livre embaixo o lugar dos botões flutuantes (Página anterior e microfone)
+  function ajusta(){ var c=box&&box.querySelector('.escchat'); if(!c) return; var top=c.getBoundingClientRect().top+(window.pageYOffset||0); c.style.height=Math.max(340,window.innerHeight-top-84)+'px'; }
+  window.addEventListener('resize',function(){ if(chat) ajusta(); });
+  function sairChat(){ chat=null; clearInterval(chatTimer); desenhar(); carregar(); window.scrollTo({top:0}); }
+  function tique(){
+    if(!chat){ clearInterval(chatTimer); return; }
+    var v=document.getElementById('view-escola');
+    if(!v||v.hidden||document.hidden||!box.querySelector('.escchat')) return;
+    chat.n++; buscar(chat.n%8===0);   // a cada ~30 s busca tudo de novo (para ver mensagens apagadas)
+  }
+  function buscar(tudo){
+    var c=chat; if(!c||c.busy) return; c.busy=true;
+    rpc('chat_mensagens',{p_turma:c.t,p_grupo:c.g,p_depois:tudo?0:c.ultimo}).then(function(r){
+      c.busy=false; if(chat!==c||!r) return;
+      var novas=r.msgs||[]; c.info=r;
+      c.msgs=tudo?novas:c.msgs.concat(novas);
+      if(c.msgs.length) c.ultimo=c.msgs[c.msgs.length-1].id;
+      if(tudo||novas.length) desenharMsgs();
+      pausa(r.silenciado_ate);
+      if(c.ultimo){ try{ localStorage.setItem('bd_chat_lido:'+c.t+':'+c.g,String(c.ultimo)); }catch(_){} }
+    },function(e){ c.busy=false; if(chat!==c) return; var el=box.querySelector('#escMsgs'); if(el&&!c.msgs.length) el.innerHTML='<div class="escvazio">⚠️ '+E(e.message)+'</div>'; });
+  }
+  function desenharMsgs(){
+    var el=box&&box.querySelector('#escMsgs'); if(!el||!chat) return;
+    var perto=!el.getAttribute('data-ok')||el.scrollHeight-el.scrollTop-el.clientHeight<80;
+    var h='', ult='', ant=null;
+    if(!chat.msgs.length) h='<div class="escvazio">Nenhuma mensagem ainda. Comece a conversa! 👋</div>';
+    chat.msgs.forEach(function(m){
+      var d=dia(m.em); if(d!==ult){ h+='<div class="escdia"><span>'+d+'</span></div>'; ult=d; ant=null; }
+      var seg=ant&&ant.autor===m.autor&&ant.minha===m.minha, corpo;
+      if(m.apagada&&m.texto==null) corpo='<i class="escapag">🚫 Mensagem apagada'+(m.apagada==='escola'?' pela escola':'')+'</i>';
+      else if(m.apagada) corpo='<i class="escapag">🚫 Apagada '+(m.apagada==='escola'?'pela escola':'por quem escreveu')+' (só a escola vê):</i> <s>'+linkify(m.texto)+'</s>';
+      else corpo=linkify(m.texto);
+      h+='<div class="escmsg'+(m.minha?' minha':'')+(seg?' seg':'')+'"><div class="escbal">'
+        +(!m.minha&&!seg?'<div class="escaut">'+E(m.autor)+(TAG[m.papel]?' <span class="esctag">'+TAG[m.papel]+'</span>':'')+'</div>':'')
+        +'<div class="esctxt">'+corpo+'</div><div class="escmeta">'+hhmm(m.em)+(m.apagada?'':'<button type="button" class="escmenu" data-ea="msg" data-id="'+m.id+'" title="Opções" aria-label="Opções da mensagem">⋯</button>')+'</div></div></div>';
+      ant=m;
+    });
+    el.innerHTML=h; el.setAttribute('data-ok','1');
+    if(perto) el.scrollTop=el.scrollHeight;
+  }
+  function pausa(ate){
+    var p=box.querySelector('#escPausa'), ta=box.querySelector('#escTxt'), bt=box.querySelector('[data-ea="enviar"]'); if(!p) return;
+    var on=!!ate&&new Date(ate)>new Date();
+    p.hidden=!on; if(on) p.textContent='⏸ A escola pausou suas mensagens neste grupo até '+new Date(ate).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})+'.';
+    if(ta) ta.disabled=on; if(bt) bt.disabled=on;
+  }
+  function enviar(){
+    var ta=box.querySelector('#escTxt'), bt=box.querySelector('[data-ea="enviar"]'), t=(ta&&ta.value||'').trim(); if(!t||!chat) return;
+    if(palavrao(t)){ aviso('Sua mensagem tem palavras que não são permitidas no grupo. Reescreva com respeito.'); return; }
+    bt.disabled=true;
+    rpc('chat_enviar',{p_turma:chat.t,p_grupo:chat.g,p_texto:t}).then(function(){ ta.value=''; ta.style.height='auto'; bt.disabled=false; buscar(false); ta.focus(); },
+      function(e){ bt.disabled=false; aviso(e.message); });
+  }
+  function menuMsg(id){
+    var m=chat&&chat.msgs.filter(function(x){ return String(x.id)===String(id); })[0]; if(!m) return;
+    var mod=chat.info&&chat.info.moderador, pn=E(primeiro(m.autor)), b='';
+    if(!m.minha) b+='<button type="button" class="escbtn2" data-o="den">🚩 Denunciar à coordenação</button>';
+    if(m.minha||mod) b+='<button type="button" class="escbtn2" data-o="apg">🗑 Apagar mensagem</button>';
+    if(mod&&!m.minha) b+='<button type="button" class="escbtn2" data-o="p60">⏸ Pausar '+pn+' por 1 hora</button><button type="button" class="escbtn2" data-o="p1440">⏸ Pausar '+pn+' por 1 dia</button><button type="button" class="escbtn2" data-o="p0">▶ Liberar '+pn+'</button>';
+    var d=janela('Mensagem de '+(m.minha?'você':E(m.autor)),'<div class="escmsgprev">'+linkify(m.texto||'')+'</div>','<div class="escmopts">'+b+'<button type="button" class="escbtn2" data-x>Fechar</button></div>');
+    d.querySelector('[data-x]').addEventListener('click',fechar);
+    d.addEventListener('keydown',function(e){ if(e.key==='Escape') fechar(); });
+    d.addEventListener('click',function(e){
+      var o=e.target.closest('[data-o]'); if(!o) return; var k=o.getAttribute('data-o'), pr;
+      if(k==='den'){ var mot=prompt('Por que você está denunciando esta mensagem? (opcional)'); if(mot===null) return;
+        pr=rpc('chat_denunciar',{p_id:m.id,p_motivo:mot}).then(function(){ aviso('Denúncia enviada para a coordenação. Obrigado!'); }); }
+      else if(k==='apg'){ if(!confirm('Apagar esta mensagem?')) return; pr=rpc('chat_apagar',{p_id:m.id}).then(function(){ aviso('Mensagem apagada'); buscar(true); }); }
+      else { var mi=+k.slice(1); pr=rpc('chat_silenciar',{p_msg:m.id,p_minutos:mi}).then(function(){ aviso(mi?primeiro(m.autor)+' não pode escrever no grupo por '+(mi>=1440?'1 dia':'1 hora'):primeiro(m.autor)+' pode escrever de novo'); }); }
+      fechar(); pr.catch(function(er){ aviso(er.message); });
+    });
   }
 
   // ---------- janelinha de formulário ----------
@@ -5387,7 +5582,12 @@ if ('serviceWorker' in navigator) {
     var b=e.target.closest('[data-ea]'); if(!b||!box||!box.contains(b)) return;
     var a=b.getAttribute('data-ea'), id=b.getAttribute('data-id'), m=atual();
     if(a==='tog'){ var k=b.getAttribute('data-k'); aberto[k]=!aberto[k]; b.parentNode.classList.toggle('open',aberto[k]); return; }
-    if(a==='sel'){ sel=+b.getAttribute('data-i')||0; desenhar(); return; }
+    if(a==='sel'){ sel=+b.getAttribute('data-i')||0; denuncias=[]; desenhar(); carregar(); return; }
+    if(a==='chat'){ abrirChat(b.getAttribute('data-t'),b.getAttribute('data-g')); return; }
+    if(a==='sair'){ sairChat(); return; }
+    if(a==='enviar'){ enviar(); return; }
+    if(a==='msg'){ menuMsg(id); return; }
+    if(a==='denapagar'||a==='denmanter'){ rpc('chat_resolver',{p_denuncia:+id,p_apagar:a==='denapagar'}).then(function(){ aviso(a==='denapagar'?'Mensagem apagada':'Denúncia encerrada'); return carregar(); },function(er){ aviso(er.message); }); return; }
     if(a==='gp'){ var on=b.checked; rpc('escola_config',{p_escola:m.escola.id,p_grupo_pais:on}).then(function(){ aviso(on?'Grupo dos pais liberado':'Grupo dos pais desligado'); return carregar(); },function(er){ b.checked=!on; aviso(er.message); }); return; }
     if(a==='entrar'){ entrar((box.querySelector('#escCod')||{}).value); return; }
     if(a==='outro'){ var cd=prompt('Digite o código de convite:'); if(cd) entrar(cd); return; }
@@ -5428,6 +5628,8 @@ if ('serviceWorker' in navigator) {
       function(er){ codPre=cv; aviso(er.message); if(window.bdAbrirEscola) window.bdAbrirEscola(); });
   })(0);
 
-  window.bdEscola={ abrir:function(el){ if(box!==el){ box=el; box.addEventListener('click',clique); } if(dados.length) desenhar(); carregar(); } };
+  window.bdEscola={ abrir:function(el){ if(box!==el){ box=el; box.addEventListener('click',clique); } chat=null; clearInterval(chatTimer); if(dados.length) desenhar(); carregar(); } };
+  // tocar no aviso "💬 Turma · Grupo..." abre direto a conversa
+  window.bdAbrirChat=function(t){ pendChat=t; if(window.bdAbrirEscola) window.bdAbrirEscola(); };
 })();
 </script>
