@@ -4787,7 +4787,7 @@ if ('serviceWorker' in navigator) {
   function daysLeft(ts){ var d = Math.ceil((ts - Date.now()) / 86400000); return d < 0 ? 0 : d; }
   function hideSub(){ if(subEl) subEl.hidden = true; }
   function hidePend(){ if(pendEl) pendEl.hidden = true; }
-  function showPend(revogado){
+  function showPend(revogado, escolaBloq){
     if(overlay) overlay.hidden = true; if(subEl) subEl.hidden = true; if(trialEl) trialEl.hidden = true;
     // acesso revogado: mensagem propria + botao que leva ao pedido normal
     var q = function(id){ return document.getElementById(id); };
@@ -4796,6 +4796,12 @@ if ('serviceWorker' in navigator) {
     if(q('gd-pend-rev')) q('gd-pend-rev').hidden = !revogado;
     ['gd-pend-toggle', 'gd-pend-refresh'].forEach(function(id){ if(q(id)) q(id).hidden = !!revogado; });
     if(revogado && q('gd-pend-opcoes')) q('gd-pend-opcoes').hidden = true;
+    if(escolaBloq){ // acesso cortado pela coordenação da escola (painel da escola)
+      if(q('gd-pend-h')) q('gd-pend-h').textContent = 'Acesso bloqueado pela escola';
+      if(q('gd-pend-sub')) q('gd-pend-sub').textContent = 'A coordenação da sua escola bloqueou o seu acesso. Fale com a escola para voltar a usar o app.';
+      ['gd-pend-rev', 'gd-pend-toggle', 'gd-pend-opcoes'].forEach(function(id){ if(q(id)) q(id).hidden = true; });
+      if(q('gd-pend-refresh')) q('gd-pend-refresh').hidden = false;
+    }
     if(pendEl) pendEl.hidden = false;
   }
   // "Solicitar novamente": sai da conta e abre o pedido normal, ja com nome e WhatsApp preenchidos
@@ -4874,7 +4880,7 @@ if ('serviceWorker' in navigator) {
       var trialEnds = b.trial_ends_at ? (Date.parse(b.trial_ends_at) || 0) : 0;
       if(trialEnds && trialEnds > Date.now()){ hidePend(); hideSub(); showTrialBanner(daysLeft(trialEnds)); return; } // em teste
       if(trialEnds){ hidePend(); showSub(true); return; }   // teste acabou -> assinar
-      showPend(b.status === 'revogado');                    // ainda nao liberado (ou revogado)
+      showPend(b.status === 'revogado', b.status === 'escola-bloqueado');                    // ainda nao liberado (ou revogado)
     }).catch(function(){ hidePend(); hideSub(); });
   }
 
@@ -5154,7 +5160,8 @@ if ('serviceWorker' in navigator) {
 .escpn{flex:1 1 200px;min-width:0;font-size:.95rem}
 .escpa{display:flex;align-items:center;gap:4px;margin-left:auto}
 .escst{font-family:var(--font-head);font-size:.74rem;color:var(--muted);letter-spacing:.06em;white-space:nowrap}
-.escst.ok{color:#2e7d32;letter-spacing:0}.escst.eu{color:var(--accent);font-weight:700;letter-spacing:0}
+.escst.ok{color:#2e7d32;letter-spacing:0}.escst.blq{color:#c62828;letter-spacing:0;font-weight:700}
+.escpainel{margin:4px 8px 6px 0}.escst.eu{color:var(--accent);font-weight:700;letter-spacing:0}
 .escib{border:1px solid var(--line);background:var(--bg);border-radius:7px;padding:3px 7px;cursor:pointer;font-size:.9rem;line-height:1.3}
 .escmais{padding:0 0 6px 22px}
 .esclink{border:0;background:none;color:var(--accent);font-family:var(--font-head);font-size:.8rem;cursor:pointer;padding:2px 0}
@@ -5273,7 +5280,8 @@ if ('serviceWorker' in navigator) {
     var m=atual();
     h+='<div class="eschead"><div class="escnome">'+E(m.escola.nome)+(m.escola.modelo?' <span class="escex">exemplo</span>':'')+'</div>'
       +'<div class="escsub">'+ICO[m.papel]+' Você está como <b>'+PAPEL[m.papel]+'</b>'+(m.papel!=='coordenacao'?' · '+E(m.nome):'')+'</div></div>';
-    if(m.papel==='coordenacao') h+=telaCoord(m);
+    if(m.bloqueado) h+='<div class="esccard escden"><h3>⛔ Seu acesso a esta escola está bloqueado</h3><p>A coordenação bloqueou o seu acesso aos grupos e às informações da escola. Fale com a escola para saber mais.</p></div>';
+    else if(m.papel==='coordenacao') h+=telaCoord(m);
     else if(m.papel==='aluno') h+=telaAluno(m);
     else if(m.papel==='responsavel') h+=telaResp(m);
     else h+=telaProf(m);
@@ -5288,7 +5296,7 @@ if ('serviceWorker' in navigator) {
   }
   function linha(x,sub){
     var info=x.papel==='professor'?(x.materia||''):(x.papel==='responsavel'?(x.parentesco||'Responsável'):'');
-    var st=x.eu?'<span class="escst eu">você</span>':(x.entrou?'<span class="escst ok">✅ já entrou</span>':'<span class="escst">✉️ '+E(x.codigo||'')+'</span>');
+    var st=x.eu?'<span class="escst eu">você</span>':(x.bloqueado?'<span class="escst blq">⛔ bloqueado</span>':(x.entrou?'<span class="escst ok">✅ já entrou</span>':'<span class="escst">✉️ '+E(x.codigo||'')+'</span>'));
     return '<div class="escpes'+(sub?' escresp':'')+'"><div class="escpn">'+(sub?'<span class="escdim">↳</span> ':'')+ICO[x.papel]+' '+E(x.nome)+(info?' <span class="escdim">· '+E(info)+'</span>':'')+'</div>'
       +'<div class="escpa">'+st
       +(x.eu?'':'<button type="button" class="escib" title="Enviar convite" data-ea="convite" data-id="'+x.id+'">📨</button>')
@@ -5305,6 +5313,7 @@ if ('serviceWorker' in navigator) {
     h+='<div class="esccard escgp"><label class="escsw" title="Liga ou desliga"><input type="checkbox" data-ea="gp"'+(gp?' checked':'')+'><span></span></label>'
       +'<div><h3>👨‍👩‍👧 Grupo dos pais da turma: '+(gp?'<b class="escok">liberado</b>':'<b class="escoff">desligado</b>')+'</h3>'
       +'<p>Quando liberado, os responsáveis de cada turma veem uns aos outros e têm um grupo só deles, separado do grupo dos alunos. Com ou sem o grupo, cada responsável vê só o próprio filho e a escola.</p></div></div>';
+    h+='<a class="escbtn escpainel" href="painel.html" target="_blank" rel="noopener">🛠 Abrir o Painel da escola</a><span class="escdim"> liberar, bloquear e remover acessos</span>';
     h+=denunciasHTML();
     var gs=grupos.filter(function(g){ return g.escola_id===m.escola.id; }), nn=gs.filter(nova).length;
     if(gs.length) h+=secao('grupos','💬 Grupos das turmas',gs.length+' grupo'+(gs.length===1?'':'s')+(nn?' · <b class="escnovas">'+nn+' com novidade</b>':''),listaGrupos(gs));

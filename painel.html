@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1f4e8c">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>Painel da Escola</title>
+<script src="escola-config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{--bg:#f5f3ee;--surface:#fffdf8;--fg:#1f1b16;--muted:#6b6459;--line:#e2ddd2;--accent:#1f4e8c;--soft:#e3ebf6}
+  @media (prefers-color-scheme:dark){:root{--bg:#17150f;--surface:#211e17;--fg:#ece7dc;--muted:#a79f90;--line:#352f25;--accent:#9cc0ef;--soft:#1d2a3a;color-scheme:dark}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.5;padding:18px}
+  .wrap{max-width:820px;margin:0 auto}
+  h1{color:var(--accent);font-size:22px;margin:4px 0 2px}
+  h2{font-size:17px;margin:0 0 6px;color:var(--accent)}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 4px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;margin:12px 0}
+  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+  input,select{width:100%;padding:10px 12px;font-size:16px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg);font-family:inherit}
+  button,.btn{padding:9px 13px;font-size:14px;border:0;border-radius:10px;cursor:pointer;font-family:inherit;text-decoration:none;display:inline-block;line-height:1.3}
+  .primary{background:var(--accent);color:#fff;width:100%;margin-top:14px;padding:12px;font-size:15px}
+  @media (prefers-color-scheme:dark){.primary,.btn-ac{color:#17150f}}
+  .gbtn{display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:#1f1b16;border:1px solid var(--line);font-weight:600}
+  .gbtn svg{width:18px;height:18px}
+  .orline{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;margin:14px 0 2px}
+  .orline::before,.orline::after{content:"";flex:1;height:1px;background:var(--line)}
+  .msg{font-size:13px;color:#b42318;min-height:16px;margin-top:8px}
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+  .marca{display:flex;align-items:center;gap:12px}
+  .logo{width:58px;height:58px;border-radius:12px;background:#fffdf8;box-shadow:0 3px 10px rgba(0,0,0,.1);padding:5px}
+  .sair{background:none;color:var(--muted);border:1px solid var(--line);font-size:13px;padding:6px 10px}
+  .nums{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+  .nums div{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 4px;text-align:center;font-size:12px;color:var(--muted)}
+  .nums b{display:block;font-size:24px;color:var(--accent);line-height:1.2}
+  .nums .destaque{border-color:var(--accent);background:var(--soft)}
+  .filtros{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px}
+  .filtros input,.filtros select{font-size:14px;padding:8px 10px}
+  .row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;border-top:1px solid var(--line);padding:11px 0}
+  .row:first-child{border-top:0}
+  .grow{flex:1 1 240px;min-width:0}
+  .nome{font-weight:700}
+  .meta{font-size:13px;color:var(--muted)}
+  .acts{display:flex;gap:6px;flex-wrap:wrap}
+  .pill{font-size:12px;border-radius:999px;padding:2px 9px;border:1px solid var(--line);background:var(--bg);color:var(--muted);white-space:nowrap}
+  .cod{font-family:ui-monospace,Consolas,monospace;font-weight:700;letter-spacing:.12em;color:var(--fg)}
+  .btn-lib{background:#1a7f37;color:#fff}
+  .btn-blq{background:#b42318;color:#fff}
+  .btn-ac{background:var(--accent);color:#fff}
+  .btn-sec{background:none;color:var(--muted);border:1px solid var(--line)}
+  .total{border-top:1px solid var(--line);padding:10px 0 0;font-size:14px;font-weight:700;color:var(--accent);text-align:right}
+  .empty{color:var(--muted);font-size:14px;padding:8px 0}
+  .hint{font-size:12.5px;color:var(--muted);margin:0 0 6px}
+  .sw{display:flex;align-items:center;gap:12px}
+  .sw input{width:auto;transform:scale(1.4);margin:0 4px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+  .checks{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:4px}
+  .checks label{display:flex;align-items:center;gap:5px;margin:0;color:var(--fg);font-size:14px}
+  .checks input{width:auto}
+  .den{border-top:1px solid var(--line);padding:10px 0}
+  .den:first-of-type{border-top:0}
+  #modal{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45);padding:18px}
+  #modal[hidden]{display:none}
+  #modal .box{background:var(--surface);border:1px solid var(--line);border-radius:14px;max-width:440px;width:100%;padding:20px;box-shadow:0 12px 40px rgba(0,0,0,.3)}
+  #modal .big{font-family:ui-monospace,Consolas,monospace;font-size:30px;font-weight:800;letter-spacing:.25em;text-align:center;color:var(--accent);margin:4px 0 10px}
+  #modal textarea{width:100%;height:150px;font-size:13px;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--bg);color:var(--fg);resize:vertical;font-family:inherit}
+  #modal .acts{margin-top:12px}
+  #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1f1b16;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;z-index:60;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw;text-align:center}
+  #toast.on{opacity:1}
+  @media (max-width:600px){ body{padding:12px} .nums{grid-template-columns:repeat(3,minmax(0,1fr))} .filtros,.grid2{grid-template-columns:1fr} }
+</style>
+<div class="wrap">
+  <div class="topbar">
+    <div class="marca"><img class="logo" id="logo" src="icons/logo.png" alt=""><div><h1>Painel da Escola</h1><p class="sub" id="escNome">Liberar, bloquear e remover acessos</p></div></div>
+    <button class="sair" id="sair" hidden>Sair</button>
+  </div>
+
+  <div class="card" id="login-card">
+    <p class="sub" style="margin:0 0 8px">Entre com a conta da <b>coordenação</b> da escola.</p>
+    <button class="primary gbtn" id="btn-google"><svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>Entrar com Google</button>
+    <div class="orline">ou com e-mail e senha</div>
+    <label for="e">E-mail</label><input id="e" type="email" autocomplete="username">
+    <label for="p">Senha</label><input id="p" type="password" autocomplete="current-password">
+    <button class="primary" id="btn-entrar">Entrar</button>
+    <div class="msg" id="login-msg"></div>
+  </div>
+
+  <div class="card" id="sem-escola" hidden>
+    <h2>Esta conta não é da coordenação</h2>
+    <p class="sub">Só quem é da coordenação de uma escola vê este painel. Se a escola de exemplo foi criada com outra conta, entre com ela.</p>
+  </div>
+
+  <div id="painel" hidden>
+    <div class="card" id="escolhe" hidden><label for="selEscola" style="margin-top:0">Escola</label><select id="selEscola"></select></div>
+
+    <div class="card">
+      <div class="nums" id="nums"></div>
+      <p class="hint" style="margin:10px 0 0">Alunos ativos = alunos que já entraram no app e não estão bloqueados.</p>
+    </div>
+
+    <div class="card">
+      <h2>⚙️ Configurações</h2>
+      <label class="sw" style="color:var(--fg);font-size:15px;margin:6px 0 0"><input type="checkbox" id="gp"> <span>👨‍👩‍👧 Liberar o <b>grupo dos pais</b> de cada turma</span></label>
+      <p class="hint" style="margin:6px 0 0">Com ou sem o grupo, cada responsável vê só o próprio filho e a escola.</p>
+    </div>
+
+    <div class="card" id="cardDen" hidden><h2>🚩 Denúncias nos grupos</h2><div id="den"></div></div>
+
+    <div class="card">
+      <h2>＋ Cadastrar pessoa</h2>
+      <p class="hint">Depois de salvar, aparece o convite para mandar pelo WhatsApp. Quem entra com o convite já fica liberado no app.</p>
+      <div class="grid2">
+        <div><label for="nPapel">Tipo</label><select id="nPapel"><option value="aluno">🎒 Aluno(a)</option><option value="responsavel">👨‍👩‍👧 Responsável</option><option value="professor">🧑‍🏫 Professor(a)</option><option value="coordenacao">🏫 Coordenação</option></select></div>
+        <div><label for="nNome">Nome</label><input id="nNome" autocomplete="off"></div>
+        <div data-p="aluno"><label for="nTurma">Turma</label><select id="nTurma"></select></div>
+        <div data-p="responsavel"><label for="nAluno">Responsável por</label><select id="nAluno"></select></div>
+        <div data-p="responsavel"><label for="nPar">Parentesco</label><select id="nPar"><option>Mãe</option><option>Pai</option><option>Avó</option><option>Avô</option><option>Tia</option><option>Tio</option><option>Madrasta</option><option>Padrasto</option><option>Responsável</option></select></div>
+        <div data-p="professor"><label for="nMat">Matéria</label><input id="nMat" autocomplete="off" placeholder="Ex.: Matemática"></div>
+        <div><label for="nCont">WhatsApp ou e-mail</label><input id="nCont" autocomplete="off" placeholder="(49) 99999-0000"></div>
+      </div>
+      <div data-p="professor"><label>Dá aula nas turmas</label><div class="checks" id="nTurmas"></div></div>
+      <button class="primary" id="nSalvar" style="max-width:280px">Salvar e gerar convite</button>
+      <details style="margin-top:14px"><summary class="meta" style="cursor:pointer">＋ Criar turma</summary>
+        <div class="grid2"><div><label for="tNome">Nome da turma</label><input id="tNome" placeholder="Ex.: 1º Ano A"></div><div><label for="tTurno">Turno</label><select id="tTurno"><option>Manhã</option><option>Tarde</option><option>Noite</option><option>Integral</option></select></div></div>
+        <button class="btn btn-ac" id="tSalvar" style="margin-top:10px">Criar turma</button>
+      </details>
+    </div>
+
+    <div class="card">
+      <div class="filtros"><input id="fBusca" placeholder="🔎 Buscar por nome ou e-mail"><select id="fPapel"><option value="">Todos os tipos</option><option value="aluno">Alunos</option><option value="responsavel">Responsáveis</option><option value="professor">Professores</option><option value="coordenacao">Coordenação</option></select><select id="fTurma"></select></div>
+    </div>
+
+    <div class="card"><h2>✉️ Convites aguardando</h2><p class="hint">Cadastrados que ainda não entraram no app. Mande o convite de novo se precisar.</p><div id="lAguard"></div><div class="total" id="tAguard"></div></div>
+    <div class="card"><h2>✅ Com acesso</h2><p class="hint">Já entraram no app. Bloquear tira o acesso sem apagar o cadastro; remover tira da escola.</p><div id="lAtivos"></div><div class="total" id="tAtivos"></div></div>
+    <div class="card"><h2>⛔ Bloqueados</h2><p class="hint">Sem acesso ao app e aos grupos. Toque em Liberar para devolver o acesso.</p><div id="lBloq"></div><div class="total" id="tBloq"></div></div>
+
+    <p class="meta" style="text-align:center;margin:18px 0 30px">Turmas, grupos de conversa e edição completa: <a href="app.html" style="color:var(--accent)">abrir o app</a> → 🏫 Minha escola.</p>
+  </div>
+</div>
+
+<div id="modal" hidden><div class="box" id="mbox"></div></div>
+<div id="toast"></div>
+
+<script>
+(function(){
+  var SB_URL = 'https://epumhsiqdxvcboisurvu.supabase.co';
+  var SB_KEY = 'sb_publishable_JW7iq8Kayqkp3OL--TCccg_aTBKOs_S';
+  var C = window.BD_ESC || {};
+  if(C.cor) document.documentElement.style.setProperty('--accent', C.cor);
+  if(C.logo) document.getElementById('logo').src = C.logo;
+  var sb = window.supabase.createClient(SB_URL, SB_KEY, { auth: { storageKey: 'bd-painel-escola' } });
+  var $ = function(id){ return document.getElementById(id); };
+  var PAPEL = {aluno:'Aluno(a)',responsavel:'Responsável',professor:'Professor(a)',coordenacao:'Coordenação'};
+  var ICO = {aluno:'🎒',responsavel:'👨‍👩‍👧',professor:'🧑‍🏫',coordenacao:'🏫'};
+  var escolas = [], sel = 0, den = [];
+
+  function E(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function toast(m){ var t=$('toast'); t.textContent=m; t.classList.add('on'); clearTimeout(toast._t); toast._t=setTimeout(function(){ t.classList.remove('on'); },3200); }
+  function primeiro(n){ return String(n||'').trim().split(/\s+/)[0]||''; }
+  function data(iso){ if(!iso) return ''; var d=new Date(iso); return d.toLocaleDateString('pt-BR')+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); }
+  function rpc(fn,a){ return sb.rpc(fn,a||{}).then(function(r){ if(r.error) throw new Error(r.error.message); return r.data; }); }
+
+  // ---------- login ----------
+  function mostrarLogin(){ $('login-card').hidden=false; $('painel').hidden=true; $('sem-escola').hidden=true; $('sair').hidden=true; }
+  $('btn-google').onclick=function(){ sb.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: location.origin+location.pathname, queryParams:{ prompt:'select_account' } } }); };
+  $('btn-entrar').onclick=function(){ $('login-msg').textContent='Entrando...';
+    sb.auth.signInWithPassword({ email:$('e').value.trim(), password:$('p').value }).then(function(r){ $('login-msg').textContent=r.error?'E-mail ou senha incorretos.':''; }); };
+  $('sair').onclick=function(){ sb.auth.signOut().then(mostrarLogin); };
+  sb.auth.getSession().then(function(r){ if(r.data&&r.data.session) carregar(); else mostrarLogin(); });
+  sb.auth.onAuthStateChange(function(ev,s){ if(ev==='SIGNED_IN'&&s) carregar(); });
+
+  // ---------- dados ----------
+  function atual(){ return escolas[sel]; }
+  function turma(id){ return (atual().turmas||[]).filter(function(t){ return t.id===id; })[0]; }
+  function pessoa(id){ return (atual().membros||[]).filter(function(x){ return x.id===id; })[0]; }
+  function carregar(){
+    $('login-card').hidden=true; $('sair').hidden=false;
+    return rpc('escola_painel').then(function(d){
+      escolas=(d||[]).filter(function(m){ return m.papel==='coordenacao'&&!m.bloqueado; });
+      if(!escolas.length){ $('sem-escola').hidden=false; $('painel').hidden=true; return; }
+      $('sem-escola').hidden=true; $('painel').hidden=false;
+      if(sel>=escolas.length) sel=0;
+      $('escolhe').hidden=escolas.length<2;
+      $('selEscola').innerHTML=escolas.map(function(m,i){ return '<option value="'+i+'"'+(i===sel?' selected':'')+'>'+E(m.escola.nome)+'</option>'; }).join('');
+      return rpc('chat_denuncias',{p_escola:atual().escola.id}).then(function(x){ den=x||[]; },function(){ den=[]; });
+    }).then(function(){ if(escolas.length) desenhar(); }, function(e){ toast('⚠️ '+e.message); });
+  }
+  $('selEscola').onchange=function(){ sel=+this.value; carregar(); };
+
+  function onde(x){
+    if(x.papel==='professor') return [x.materia].concat((x.turmas||[]).map(function(t){ var o=turma(t); return o?o.nome:''; })).filter(Boolean).join(' · ');
+    if(x.papel==='responsavel'){ var a=pessoa(x.aluno_id); return (x.parentesco||'Responsável')+(a?' de '+a.nome:'')+(turma(x.turma_id)?' · '+turma(x.turma_id).nome:''); }
+    if(x.papel==='aluno') return turma(x.turma_id)?turma(x.turma_id).nome:'sem turma';
+    return '';
+  }
+  function filtrados(){
+    var b=$('fBusca').value.trim().toLowerCase(), p=$('fPapel').value, t=$('fTurma').value;
+    return (atual().membros||[]).filter(function(x){
+      if(p&&x.papel!==p) return false;
+      if(t&&!(x.turma_id===t||(x.turmas||[]).indexOf(t)>=0)) return false;
+      if(b&&(x.nome+' '+(x.email||'')+' '+(x.contato||'')).toLowerCase().indexOf(b)<0) return false;
+      return true;
+    });
+  }
+  function desenhar(){
+    var m=atual(), mem=m.membros||[], tur=m.turmas||[];
+    $('escNome').textContent=m.escola.nome+(m.escola.modelo?' (exemplo)':'');
+    function conta(f){ return mem.filter(f).length; }
+    $('nums').innerHTML=
+      '<div class="destaque"><b>'+conta(function(x){ return x.papel==='aluno'&&x.entrou&&!x.bloqueado; })+'</b>alunos ativos</div>'
+      +'<div><b>'+conta(function(x){ return x.papel==='responsavel'&&x.entrou&&!x.bloqueado; })+'</b>responsáveis ativos</div>'
+      +'<div><b>'+conta(function(x){ return x.papel==='professor'&&x.entrou&&!x.bloqueado; })+'</b>professores ativos</div>'
+      +'<div><b>'+conta(function(x){ return !x.entrou&&!x.bloqueado; })+'</b>convites aguardando</div>'
+      +'<div><b>'+conta(function(x){ return x.bloqueado; })+'</b>bloqueados</div>';
+    $('gp').checked=!!m.escola.grupo_pais;
+    // formulário
+    var ft=$('fTurma').value;
+    $('fTurma').innerHTML='<option value="">Todas as turmas</option>'+tur.map(function(t){ return '<option value="'+t.id+'">'+E(t.nome)+'</option>'; }).join('');
+    $('fTurma').value=ft;
+    $('nTurma').innerHTML='<option value="">(sem turma)</option>'+tur.map(function(t){ return '<option value="'+t.id+'">'+E(t.nome+(t.turno?' · '+t.turno:''))+'</option>'; }).join('');
+    $('nAluno').innerHTML=mem.filter(function(a){ return a.papel==='aluno'; }).sort(function(a,b){ return a.nome.localeCompare(b.nome); })
+      .map(function(a){ var t=turma(a.turma_id); return '<option value="'+a.id+'">'+E(a.nome+(t?' — '+t.nome:''))+'</option>'; }).join('');
+    $('nTurmas').innerHTML=tur.map(function(t){ return '<label><input type="checkbox" value="'+t.id+'"> '+E(t.nome)+'</label>'; }).join('')||'<span class="meta">Crie uma turma primeiro.</span>';
+    tipoForm();
+    // denúncias
+    $('cardDen').hidden=!den.length;
+    $('den').innerHTML=den.map(function(d){ return '<div class="den"><div class="meta">'+E(d.turma)+' · '+(d.grupo==='pais'?'Grupo dos pais':'Grupo da turma')+' · '+data(d.em)+'</div><div><b>'+E(d.autor)+':</b> '+E(d.texto)+'</div><div class="meta">Denunciada por '+E(d.quem||'—')+(d.motivo?' · “'+E(d.motivo)+'”':'')+'</div>'
+      +'<div class="acts" style="margin-top:6px"><button class="btn-blq" data-den="'+d.id+'" data-apagar="1">🗑 Apagar mensagem</button><button class="btn-sec" data-den="'+d.id+'">✔ Manter</button></div></div>'; }).join('');
+    listas();
+  }
+  function linha(x,botoes,extra){
+    return '<div class="row"><div class="grow"><div class="nome">'+ICO[x.papel]+' '+E(x.nome)+(x.eu?' <span class="pill">você</span>':'')+(x.exemplo?' <span class="pill">exemplo</span>':'')+'</div>'
+      +'<div class="meta">'+PAPEL[x.papel]+(onde(x)?' · '+E(onde(x)):'')+'</div>'+(extra?'<div class="meta">'+extra+'</div>':'')+'</div><div class="acts">'+botoes+'</div></div>';
+  }
+  function listas(){
+    var l=filtrados().sort(function(a,b){ return a.nome.localeCompare(b.nome); });
+    var ag=l.filter(function(x){ return !x.entrou&&!x.bloqueado; }), at=l.filter(function(x){ return x.entrou&&!x.bloqueado; }), bq=l.filter(function(x){ return x.bloqueado; });
+    $('lAguard').innerHTML=ag.map(function(x){ return linha(x,
+      '<button class="btn-ac" data-a="convite" data-id="'+x.id+'">📨 Convite</button><button class="btn-sec" data-a="novo" data-id="'+x.id+'">🔄 Novo código</button><button class="btn-blq" data-a="bloq" data-id="'+x.id+'">⛔ Bloquear</button><button class="btn-sec" data-a="del" data-id="'+x.id+'">🗑 Remover</button>',
+      'Código <span class="cod">'+E(x.codigo||'')+'</span>'+(x.contato?' · '+E(x.contato):'')); }).join('')||'<div class="empty">Nenhum convite aguardando.</div>';
+    $('lAtivos').innerHTML=at.map(function(x){ return linha(x,
+      x.eu?'':'<button class="btn-blq" data-a="bloq" data-id="'+x.id+'">⛔ Bloquear</button><button class="btn-sec" data-a="del" data-id="'+x.id+'">🗑 Remover</button>',
+      [x.email?E(x.email):'', x.ultimo_acesso?'último acesso '+data(x.ultimo_acesso):''].filter(Boolean).join(' · ')); }).join('')||'<div class="empty">Ninguém com acesso ainda.</div>';
+    $('lBloq').innerHTML=bq.map(function(x){ return linha(x,
+      '<button class="btn-lib" data-a="lib" data-id="'+x.id+'">✅ Liberar</button><button class="btn-sec" data-a="del" data-id="'+x.id+'">🗑 Remover</button>',
+      x.email?E(x.email):''); }).join('')||'<div class="empty">Ninguém bloqueado.</div>';
+    $('tAguard').textContent='Total: '+ag.length; $('tAtivos').textContent='Total: '+at.length; $('tBloq').textContent='Total: '+bq.length;
+  }
+  ['fBusca','fPapel','fTurma'].forEach(function(id){ $(id).addEventListener('input',function(){ if(escolas.length) listas(); }); });
+
+  // ---------- ações ----------
+  document.addEventListener('click',function(e){
+    var b=e.target.closest('[data-a]');
+    if(b){ var x=pessoa(b.getAttribute('data-id')), a=b.getAttribute('data-a'); if(!x) return;
+      if(a==='convite') return convite(x);
+      if(a==='novo'){ if(!confirm('Gerar um código novo para '+x.nome+'? O código antigo deixa de valer.')) return;
+        return rpc('escola_novo_codigo',{p_id:x.id}).then(carregar).then(function(){ var n=pessoa(x.id); if(n) convite(n); },function(er){ toast(er.message); }); }
+      if(a==='bloq'){ if(!confirm('Bloquear '+x.nome+'?\n\n'+primeiro(x.nome)+' perde o acesso ao app e aos grupos da escola. O cadastro continua e dá para liberar depois.')) return;
+        return rpc('escola_bloquear',{p_id:x.id,p_bloquear:true}).then(function(){ toast(x.nome+' bloqueado(a)'); return carregar(); },function(er){ toast(er.message); }); }
+      if(a==='lib') return rpc('escola_bloquear',{p_id:x.id,p_bloquear:false}).then(function(){ toast(x.nome+' liberado(a)'); return carregar(); },function(er){ toast(er.message); });
+      if(a==='del'){ var rr=x.papel==='aluno'?(atual().membros||[]).filter(function(r){ return r.aluno_id===x.id; }).length:0;
+        if(!confirm('Remover '+x.nome+' da escola?\n\nA pessoa sai da escola e perde o acesso ao app.'+(rr?' Os '+rr+' responsáveis cadastrados para esse aluno também saem.':'')+'\n\nIsso não pode ser desfeito.')) return;
+        return rpc('escola_excluir_membro',{p_id:x.id}).then(function(){ toast('Removido(a)'); return carregar(); },function(er){ toast(er.message); }); }
+    }
+    var d=e.target.closest('[data-den]');
+    if(d) rpc('chat_resolver',{p_denuncia:+d.getAttribute('data-den'),p_apagar:d.hasAttribute('data-apagar')}).then(function(){ toast(d.hasAttribute('data-apagar')?'Mensagem apagada':'Denúncia encerrada'); return carregar(); },function(er){ toast(er.message); });
+  });
+  $('gp').onchange=function(){ var on=this.checked;
+    rpc('escola_config',{p_escola:atual().escola.id,p_grupo_pais:on}).then(function(){ toast(on?'Grupo dos pais liberado':'Grupo dos pais desligado'); return carregar(); },function(er){ $('gp').checked=!on; toast(er.message); }); };
+
+  function tipoForm(){ var p=$('nPapel').value; [].forEach.call(document.querySelectorAll('[data-p]'),function(el){ el.hidden=el.getAttribute('data-p')!==p; }); }
+  $('nPapel').onchange=tipoForm;
+  $('nSalvar').onclick=function(){
+    var p=$('nPapel').value, nome=$('nNome').value.trim(); if(!nome){ toast('Escreva o nome'); return; }
+    var dados={papel:p,nome:nome,contato:$('nCont').value,turma_id:p==='aluno'?$('nTurma').value:'',aluno_id:p==='responsavel'?$('nAluno').value:'',
+      parentesco:p==='responsavel'?$('nPar').value:'',materia:p==='professor'?$('nMat').value:'',
+      turmas:p==='professor'?[].map.call(document.querySelectorAll('#nTurmas input:checked'),function(c){ return c.value; }):[]};
+    this.disabled=true; var bt=this;
+    rpc('escola_salvar_membro',{p_escola:atual().escola.id,p_id:null,p:dados}).then(function(id){
+      bt.disabled=false; $('nNome').value=''; $('nCont').value=''; $('nMat').value='';
+      return carregar().then(function(){ var n=pessoa(id); if(n) convite(n); });
+    },function(er){ bt.disabled=false; toast(er.message); });
+  };
+  $('tSalvar').onclick=function(){
+    rpc('escola_salvar_turma',{p_escola:atual().escola.id,p_id:null,p_nome:$('tNome').value,p_turno:$('tTurno').value}).then(function(){ $('tNome').value=''; toast('Turma criada'); return carregar(); },function(er){ toast(er.message); });
+  };
+
+  // ---------- convite ----------
+  function convite(x){
+    var m=atual(), link=location.origin+location.pathname.replace(/painel\.html$/,'')+'app.html?convite='+x.codigo, al=x.papel==='responsavel'?pessoa(x.aluno_id):null;
+    var txt='Olá, '+primeiro(x.nome)+'! Este é o seu convite para o app do '+m.escola.nome+(al?', para acompanhar '+al.nome:'')+' ('+PAPEL[x.papel]+').\n\n1) Abra este link: '+link+'\n2) Entre com a sua conta Google\n3) Se o app pedir, digite o código: '+x.codigo;
+    var c=(x.contato||'').trim(), fone=c.replace(/\D/g,''), mail=/@/.test(c); if(fone.length>=10&&fone.length<=11) fone='55'+fone;
+    var wa='https://wa.me/'+(!mail&&fone.length>=12?fone:'')+'?text='+encodeURIComponent(txt);
+    $('mbox').innerHTML='<h2>📨 Convite de '+E(x.nome)+'</h2><div class="big">'+E(x.codigo)+'</div><textarea readonly id="mtxt">'+E(txt)+'</textarea>'
+      +'<div class="acts"><button class="btn-ac" id="mcp">📋 Copiar</button><a class="btn btn-lib" href="'+E(wa)+'" target="_blank" rel="noopener">🟢 WhatsApp</a>'
+      +(mail?'<a class="btn btn-ac" href="mailto:'+E(c)+'?subject='+encodeURIComponent('Convite: '+m.escola.nome)+'&body='+encodeURIComponent(txt)+'">✉️ E-mail</a>':'')
+      +'<button class="btn-sec" id="mfechar">Fechar</button></div>';
+    $('modal').hidden=false;
+    $('mfechar').onclick=fechar;
+    $('mcp').onclick=function(){ (navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(function(){ toast('Convite copiado'); },function(){ $('mtxt').select(); document.execCommand('copy'); toast('Convite copiado'); }); };
+  }
+  function fechar(){ $('modal').hidden=true; }
+  $('modal').addEventListener('click',function(e){ if(e.target===this) fechar(); });
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape') fechar(); });
+})();
+</script>
+</html>
