@@ -6216,10 +6216,14 @@ if ('serviceWorker' in navigator) {
     if(!tu.length) return h+'<div class="escdim" style="padding:2px 2px 6px">Quando os alunos das suas turmas fizerem simulados'+(m.materia?' de '+E(m.materia):'')+', as notas aparecem aqui.</div>';
     return h+tu.map(function(t){
       var k='sp'+t.turma_id, r='<p class="escdim" style="margin:4px 0 6px">'+(m.materia?E(m.materia)+' · ':'')+t.fizeram+' de '+t.alunos+' alunos fizeram · '+t.simulados+' simulado'+(t.simulados===1?'':'s')+'</p>';
-      if(!t.simulados) r+='<div class="escdim">Nenhum simulado respondido nesta turma ainda.</div>';
+      if(!t.simulados) r+='<div class="escdim">Nenhum simulado respondido'+(m.materia?' de '+E(m.materia):'')+' nesta turma ainda.</div>';
       else {
         if((t.assuntos||[]).length) r+='<h4 class="esch4">🎯 Onde a turma mais errou</h4>'+t.assuntos.map(function(a){ return linhaR(E(a.assunto),a.erros+' erro'+(a.erros===1?'':'s')+' em '+a.total+' quest'+(a.total===1?'ão':'ões'),Math.round(100*(a.total-a.erros)/a.total)); }).join('');
-        r+='<h4 class="esch4">👥 Alunos</h4>'+(t.por_aluno||[]).map(function(a){ return linhaR(E(a.nome),+a.feitos?a.feitos+' simulado'+(+a.feitos===1?'':'s'):'ainda não fez',+a.feitos?a.media:null); }).join('');
+      }
+      if((t.por_aluno||[]).length){
+        r+='<h4 class="esch4">👥 Alunos <small class="escdim">· esta semana '+(+t.semana_fizeram||0)+' de '+t.alunos+' já fizeram</small></h4>'+t.por_aluno.map(function(a){ var w=a.semana;
+          var st=!w?'⏳ ainda não fez o desta semana':(w.respondido?'✅ fez o desta semana ('+E(w.materia)+': '+w.acertos+' de '+w.total+')':'📝 gerou o desta semana ('+E(w.materia)+') e não respondeu');
+          return linhaR(E(a.nome),st+' · '+(+a.feitos?'na sua matéria: '+a.feitos+' simulado'+(+a.feitos===1?'':'s'):'nenhum na sua matéria'),+a.feitos?a.media:null); }).join('');
       }
       return secao(k,'📚 '+E(t.turma),t.media!=null?'média '+t.media+'%':'sem simulados',r);
     }).join('');
