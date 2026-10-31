@@ -5369,7 +5369,7 @@ if ('serviceWorker' in navigator) {
     return Promise.all([rpc('escola_painel'), rpc('chat_grupos').catch(function(){ return []; }), rpc('avisos_meus').catch(function(){ return []; }), rpc('materiais_lista').catch(function(){ return null; }), rpc('simulados_meus').catch(function(){ return []; }), rpc('relatos_meus',{p_protocolos:protos()}).catch(function(){ return []; }), rpc('escola_marca').catch(function(){ return null; })]).then(function(r){
       dados=Array.isArray(r[0])?r[0]:[]; grupos=Array.isArray(r[1])?r[1]:[]; avisos=Array.isArray(r[2])?r[2]:[]; if(Array.isArray(r[3])) guardaMats(r[3]); sims=Array.isArray(r[4])?r[4]:[]; relatos=Array.isArray(r[5])?r[5]:[]; if(sel>=dados.length) sel=0;
       if(Array.isArray(r[6])){ marcas=r[6]; aplicarMarca(); }
-      var m=atual(); denuncias=[]; avisosEsc=[]; filhoRes={}; relatosEsc=[]; acessos={}; relat={};
+      var m=atual(); denuncias=[]; avisosEsc=[]; filhoRes={}; relatosEsc=[]; acessos={}; relat={}; simProf=null;
       if(!m||m.papel!=='coordenacao') return;
       if(m.escola.modelo&&!exemploOk[m.escola.id]){ // escola de exemplo: põe umas conversas para mostrar (só se o grupo estiver vazio)
         exemploOk[m.escola.id]=1;
@@ -5527,7 +5527,7 @@ if ('serviceWorker' in navigator) {
     (m.turmas||[]).forEach(function(t){ h+='<div class="esccard"><h3>📚 '+E(t.nome)+(t.turno?' <span class="escdim">· '+E(t.turno)+'</span>':'')+'</h3><p class="escdim">'+(m.materia?E(m.materia)+' · ':'')+t.alunos.length+' aluno'+(t.alunos.length===1?'':'s')+'</p>'+tags(t.alunos)
       +(t.id?'<button type="button" class="escbtn" data-ea="matnovo" data-t="'+t.id+'" style="margin-top:10px">📎 Enviar material para esta turma</button>':'')+'</div>'; });
     if(!h) h='<div class="escvazio">A coordenação ainda não ligou você a nenhuma turma.</div>';
-    return h+matsHTML(m,true)+gruposHTML(m,'turma')+segAparelhoHTML();
+    return h+simProfHTML(m)+matsHTML(m,true)+gruposHTML(m,'turma')+segAparelhoHTML();
   }
 
   // ---------- grupos (lista) ----------
@@ -6200,6 +6200,29 @@ if ('serviceWorker' in navigator) {
     var blob=new Blob(['﻿'+L.map(function(l){ return l.map(c).join(';'); }).join('\r\n')],{type:'text/csv;charset=utf-8'});
     var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='simulados-'+String(m.escola.nome).replace(/[^\wÀ-ſ]+/g,'-')+'.csv';
     document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },1000);
+  }
+
+  // professor: desempenho das turmas dele nos simulados (na matéria dele) e os assuntos com mais erros
+  var simProf=null;
+  function simProfHTML(m){
+    var h='<h2 class="esch2">📊 Simulados das suas turmas</h2>';
+    if(!simProf){ simProf={carregando:true};
+      rpc('simulados_prof').then(function(d){ simProf={l:Array.isArray(d)?d:[]}; },function(e){ simProf={erro:e.message}; }).then(function(){ if(!ocupado()) desenhar(); });
+      return h+'<div class="escdim">Carregando…</div>'; }
+    if(simProf.carregando) return h+'<div class="escdim">Carregando…</div>';
+    if(simProf.erro) return h+'<div class="escdim">⚠️ '+E(simProf.erro)+'</div>';
+    var me=(simProf.l||[]).filter(function(x){ return x.membro_id===m.membro_id; })[0];
+    var tu=(me&&me.turmas)||[];
+    if(!tu.length) return h+'<div class="escdim" style="padding:2px 2px 6px">Quando os alunos das suas turmas fizerem simulados'+(m.materia?' de '+E(m.materia):'')+', as notas aparecem aqui.</div>';
+    return h+tu.map(function(t){
+      var k='sp'+t.turma_id, r='<p class="escdim" style="margin:4px 0 6px">'+(m.materia?E(m.materia)+' · ':'')+t.fizeram+' de '+t.alunos+' alunos fizeram · '+t.simulados+' simulado'+(t.simulados===1?'':'s')+'</p>';
+      if(!t.simulados) r+='<div class="escdim">Nenhum simulado respondido nesta turma ainda.</div>';
+      else {
+        if((t.assuntos||[]).length) r+='<h4 class="esch4">🎯 Onde a turma mais errou</h4>'+t.assuntos.map(function(a){ return linhaR(E(a.assunto),a.erros+' erro'+(a.erros===1?'':'s')+' em '+a.total+' quest'+(a.total===1?'ão':'ões'),Math.round(100*(a.total-a.erros)/a.total)); }).join('');
+        r+='<h4 class="esch4">👥 Alunos</h4>'+(t.por_aluno||[]).map(function(a){ return linhaR(E(a.nome),+a.feitos?a.feitos+' simulado'+(+a.feitos===1?'':'s'):'ainda não fez',+a.feitos?a.media:null); }).join('');
+      }
+      return secao(k,'📚 '+E(t.turma),t.media!=null?'média '+t.media+'%':'sem simulados',r);
+    }).join('');
   }
 
   // ---------- 🎨 marca do colégio e 🔒 regras de segurança (coordenação) ----------
