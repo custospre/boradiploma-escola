@@ -3,7 +3,7 @@
    e, mais pra frente, vai receber os lembretes de prazo (push).
    Troque a versao do cache sempre que publicar uma atualizacao. */
 
-const CACHE = 'bdescola-v29';
+const CACHE = 'bdescola-v30';
 
 // Arquivos que ficam guardados pra abrir offline (o "esqueleto" do app).
 // O app.html (grande, ~12 MB) entra no cache na 1a vez que abrir.

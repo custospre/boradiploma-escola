@@ -74,6 +74,25 @@
   .tabimp table{border-collapse:collapse;width:100%;font-size:13px}
   .tabimp th,.tabimp td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
   .tabimp th{position:sticky;top:0;background:var(--soft);color:var(--accent);font-weight:700}
+  .rl{display:flex;gap:10px;align-items:center;border-top:1px solid var(--line);padding:7px 0;font-size:14px}
+  .rl:first-child{border-top:0}
+  .rln{flex:1;min-width:0}
+  .rln small{display:block;color:var(--muted);font-size:12.5px}
+  .bar{flex:0 0 30%;height:10px;border-radius:6px;background:var(--line);overflow:hidden}
+  .bar i{display:block;height:100%;border-radius:6px}
+  .rlv{flex:0 0 3.4em;text-align:right;font-weight:700}
+  h3{font-size:14.5px;margin:14px 0 4px}
+  details.rel{border-top:1px solid var(--line);padding:9px 0}
+  details.rel:first-of-type{border-top:0}
+  details.rel summary{cursor:pointer;list-style:none}
+  details.rel summary::-webkit-details-marker{display:none}
+  .relmsg{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:7px 10px;margin:6px 0;font-size:14px;white-space:pre-wrap}
+  .relmsg.esc{background:var(--soft);margin-left:18%}
+  .novo{color:#b42318;font-weight:700}
+  .logoesc{height:46px;max-width:120px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:8px;padding:2px;vertical-align:middle;margin-right:8px}
+  .linha2{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .linha2 input[type=color]{width:56px;height:40px;padding:2px}
+  .tabacc{max-height:380px;overflow:auto}
   #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1f1b16;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;z-index:60;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw;text-align:center}
   #toast.on{opacity:1}
   @media (max-width:600px){ body{padding:12px} .nums{grid-template-columns:repeat(3,minmax(0,1fr))} .filtros,.grid2{grid-template-columns:1fr} }
@@ -112,6 +131,31 @@
       <label class="sw" style="color:var(--fg);font-size:15px;margin:6px 0 0"><input type="checkbox" id="gp"> <span>👨‍👩‍👧 Liberar o <b>grupo dos pais</b> de cada turma</span></label>
       <p class="hint" style="margin:6px 0 0">Com ou sem o grupo, cada responsável vê só o próprio filho e a escola.</p>
     </div>
+
+    <div class="card">
+      <h2>🎨 Marca do colégio</h2>
+      <p class="hint">A cor e o logo aparecem no app de todos os alunos, responsáveis e professores da escola.</p>
+      <label>Cor do colégio</label>
+      <div class="linha2"><input type="color" id="mkCor"><button class="btn-ac" id="mkCorOk">Salvar cor</button><button class="btn-sec" id="mkCor0">Voltar à cor padrão</button></div>
+      <label>Logo do colégio</label>
+      <div class="linha2"><img class="logoesc" id="mkLogoImg" alt="Logo" hidden><label class="btn btn-ac" for="mkLogoArq">🖼 Enviar logo</label><input type="file" id="mkLogoArq" accept="image/png,image/jpeg,image/webp" hidden><button class="btn-sec" id="mkLogo0" hidden>Tirar logo</button></div>
+    </div>
+
+    <div class="card">
+      <h2>🔒 Segurança</h2>
+      <label class="sw" style="color:var(--fg);font-size:15px;margin:6px 0 0"><input type="checkbox" id="mkPin"> <span>Exigir <b>PIN ou digital</b> ao abrir o app</span></label>
+      <p class="hint" style="margin:6px 0 0">Todo mundo da escola cria um PIN de 4 números (ou usa a digital) no aparelho. Protege as conversas se alguém pegar o celular.</p>
+      <label for="mkSair">Sair sozinho depois de parado</label>
+      <select id="mkSair" style="max-width:280px"><option value="0">Nunca</option><option value="15">15 minutos</option><option value="30">30 minutos</option><option value="60">1 hora</option><option value="240">4 horas</option><option value="1440">1 dia</option></select>
+      <p class="hint" style="margin:6px 0 0">Se ninguém mexer no app por esse tempo, a conta sai e é preciso entrar de novo. Bom para computador compartilhado.</p>
+      <h3>🕒 Últimos acessos</h3>
+      <p class="hint">Quem entrou no app, quando e de qual aparelho (guardado por 6 meses).</p>
+      <div class="tabacc" id="acc"><div class="empty">Carregando…</div></div>
+    </div>
+
+    <div class="card"><h2>🛟 Disque-denúncia</h2><p class="hint">Relatos de alunos e responsáveis. Nos anônimos a escola não sabe quem enviou, mas a pessoa vê a resposta no app dela.</p><div id="rels"><div class="empty">Carregando…</div></div></div>
+
+    <div class="card"><h2>📊 Simulados da escola</h2><p class="hint">Porcentagem de acertos nos simulados respondidos.</p><div id="relat"><div class="empty">Carregando…</div></div></div>
 
     <div class="card" id="cardDen" hidden><h2>🚩 Denúncias nos grupos</h2><div id="den"></div></div>
 
@@ -172,7 +216,7 @@
   var $ = function(id){ return document.getElementById(id); };
   var PAPEL = {aluno:'Aluno(a)',responsavel:'Responsável',professor:'Professor(a)',coordenacao:'Coordenação'};
   var ICO = {aluno:'🎒',responsavel:'👨‍👩‍👧',professor:'🧑‍🏫',coordenacao:'🏫'};
-  var escolas = [], sel = 0, den = [];
+  var escolas = [], sel = 0, den = [], marcas = [], rels = [], relat = null, acc = null;
 
   function E(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function toast(m){ var t=$('toast'); t.textContent=m; t.classList.add('on'); clearTimeout(toast._t); toast._t=setTimeout(function(){ t.classList.remove('on'); },3200); }
@@ -202,7 +246,12 @@
       if(sel>=escolas.length) sel=0;
       $('escolhe').hidden=escolas.length<2;
       $('selEscola').innerHTML=escolas.map(function(m,i){ return '<option value="'+i+'"'+(i===sel?' selected':'')+'>'+E(m.escola.nome)+'</option>'; }).join('');
-      return rpc('chat_denuncias',{p_escola:atual().escola.id}).then(function(x){ den=x||[]; },function(){ den=[]; });
+      var id=atual().escola.id;
+      return Promise.all([rpc('chat_denuncias',{p_escola:id}).then(function(x){ den=x||[]; },function(){ den=[]; }),
+        rpc('escola_marca').then(function(x){ marcas=x||[]; },function(){ marcas=[]; }),
+        rpc('relatos_escola',{p_escola:id}).then(function(x){ rels=x||[]; },function(){ rels=null; }),
+        rpc('simulados_relatorio',{p_escola:id}).then(function(x){ relat=x||{}; },function(){ relat=null; }),
+        rpc('escola_acessos',{p_escola:id}).then(function(x){ acc=x||[]; },function(){ acc=null; })]);
     }).then(function(){ if(escolas.length) desenhar(); }, function(e){ toast('⚠️ '+e.message); });
   }
   $('selEscola').onchange=function(){ sel=+this.value; carregar(); };
@@ -246,8 +295,57 @@
     $('cardDen').hidden=!den.length;
     $('den').innerHTML=den.map(function(d){ return '<div class="den"><div class="meta">'+E(d.turma)+' · '+(d.grupo==='pais'?'Grupo dos pais':'Grupo da turma')+' · '+data(d.em)+'</div><div><b>'+E(d.autor)+':</b> '+E(d.texto)+'</div><div class="meta">Denunciada por '+E(d.quem||'—')+(d.motivo?' · “'+E(d.motivo)+'”':'')+'</div>'
       +'<div class="acts" style="margin-top:6px"><button class="btn-blq" data-den="'+d.id+'" data-apagar="1">🗑 Apagar mensagem</button><button class="btn-sec" data-den="'+d.id+'">✔ Manter</button></div></div>'; }).join('');
-    listas();
+    listas(); extras();
   }
+  // ---------- marca, segurança, acessos, disque-denúncia e relatório ----------
+  var STATUS={novo:'🆕 recebido',andamento:'🔎 em análise',resolvido:'✅ resolvido'};
+  function marcaAtual(){ var id=atual().escola.id; return marcas.filter(function(x){ return x.escola_id===id; })[0]||{}; }
+  function pct(v){ return v==null?'–':v+'%'; }
+  function rl(t,sub,v){ return '<div class="rl"><div class="rln"><b>'+t+'</b><small>'+sub+'</small></div>'+(v!=null?'<span class="bar"><i style="width:'+(+v||0)+'%;background:'+(v>=70?'#2e8b57':(v>=50?'#d39b22':'#c0392b'))+'"></i></span><span class="rlv">'+pct(v)+'</span>':'')+'</div>'; }
+  function extras(){
+    var mk=marcaAtual();
+    $('mkCor').value=mk.cor||C.cor||'#1f4e8c'; $('mkCor0').hidden=!mk.cor;
+    $('mkLogoImg').hidden=!mk.logo; if(mk.logo) $('mkLogoImg').src=mk.logo; $('mkLogo0').hidden=!mk.logo;
+    $('mkPin').checked=!!mk.exigir_pin; $('mkSair').value=String(mk.sair_min||0);
+    document.documentElement.style.setProperty('--accent', mk.cor||C.cor||'#1f4e8c'); $('logo').src=mk.logo||C.logo||'icons/logo.png';
+    $('acc').innerHTML=acc==null?'<div class="empty">⚠️ Rode o SQL de segurança no Supabase para ver os acessos.</div>':(acc.length?acc.map(function(x){ return '<div class="rl"><div class="rln"><b>'+ICO[x.papel]+' '+E(x.nome)+'</b><small>'+E(x.aparelho||'')+'</small></div><span class="meta">'+data(x.em)+'</span></div>'; }).join(''):'<div class="empty">Nenhum acesso registrado ainda.</div>');
+    $('rels').innerHTML=rels==null?'<div class="empty">⚠️ Não consegui carregar os relatos.</div>':(rels.length?rels.map(function(r){ var nv=r.status==='novo'||+r.novas>0;
+      return '<details class="rel" data-rel="'+r.id+'"'+(abertos[r.id]?' open':'')+'><summary><div class="nome">🛟 '+E(r.categoria)+' · <span class="meta">'+STATUS[r.status]+'</span>'+(nv?' <span class="novo">'+(r.status==='novo'?'novo':r.novas+' nova(s)')+'</span>':'')+'</div>'
+        +'<div class="meta">'+(r.anonimo?'🙈 Anônimo ('+(r.papel==='responsavel'?'um responsável':'um aluno')+')':'🙋 '+E(r.quem||''))+' · protocolo '+E(r.protocolo)+' · '+data(r.em)+'</div></summary>'
+        +'<div class="relmsg">'+E(r.texto)+'</div>'+(r.conversa||[]).map(function(x){ return '<div class="relmsg'+(x.da_escola?' esc':'')+'"><span class="meta">'+(x.da_escola?'Coordenação':(r.anonimo?'Anônimo':E(r.quem||'')))+' · '+data(x.em)+'</span><br>'+E(x.texto)+'</div>'; }).join('')
+        +'<textarea rows="2" placeholder="Responder" data-rtx="'+r.id+'"></textarea><div class="acts" style="margin-top:6px"><button class="btn-ac" data-rok="'+r.id+'">Enviar resposta</button>'
+        +['andamento','resolvido'].map(function(st){ return '<button class="btn-sec" data-rst="'+st+'" data-rid="'+r.id+'"'+(r.status===st?' disabled':'')+'>'+STATUS[st]+'</button>'; }).join('')+'</div></details>'; }).join(''):'<div class="empty">Nenhum relato recebido.</div>');
+    var R=relat;
+    if(!R) $('relat').innerHTML='<div class="empty">⚠️ Não consegui carregar o relatório.</div>';
+    else if(!(R.turmas||[]).length) $('relat').innerHTML='<div class="empty">Nenhum simulado respondido ainda. Quando os alunos fizerem, as médias aparecem aqui.</div>';
+    else { var pa=R.por_aluno||[], nunca=pa.filter(function(a){ return !+a.gerados; }).length;
+      $('relat').innerHTML='<h3>Por turma</h3>'+R.turmas.map(function(t){ return rl(E(t.turma),t.fizeram+' de '+t.alunos+' alunos fizeram · '+t.simulados+' simulado(s)',t.media); }).join('')
+        +'<h3>Por matéria <span class="meta">(as mais difíceis primeiro)</span></h3>'+(R.materias||[]).map(function(x){ return rl(E(x.materia),E(x.turma)+' · '+x.simulados+' simulado(s)',x.media); }).join('')
+        +'<details style="margin-top:10px"><summary><b>Por aluno</b> ('+pa.length+(nunca?' · '+nunca+' nunca fizeram':'')+')</summary>'+pa.map(function(a){ return rl(E(a.nome),E(a.turma)+' · '+(+a.feitos?a.feitos+' feito(s)':(+a.gerados?'gerou e não respondeu':'nunca fez')),+a.feitos?a.media:null); }).join('')+'</details>'
+        +'<div class="acts" style="margin-top:10px"><button class="btn-sec" id="relCsv">⬇ Baixar planilha (Excel)</button></div>';
+      $('relCsv').onclick=function(){ baixarXlsx('simulados-'+semAcento(atual().escola.nome).replace(/[^a-z0-9]+/g,'-')+'.xlsx',
+        [['Aluno','Turma','Simulados respondidos','Simulados gerados','Média de acertos (%)','Último simulado']].concat(pa.map(function(a){ return [a.nome,a.turma,+a.feitos,+a.gerados,a.media==null?'':a.media,a.ultima||'']; }))
+        .concat([[],['Turma','Matéria','Simulados','Média de acertos (%)']]).concat((R.materias||[]).map(function(x){ return [x.turma,x.materia,x.simulados,x.media==null?'':x.media]; }))).catch(function(er){ toast(er.message); }); };
+    }
+  }
+  var abertos={};
+  document.addEventListener('toggle',function(e){ var d=e.target; if(!d.matches||!d.matches('details.rel')) return; var id=d.getAttribute('data-rel'); abertos[id]=d.open;
+    var r=(rels||[]).filter(function(x){ return String(x.id)===id; })[0];
+    if(d.open&&r&&(r.status==='novo'||+r.novas)) rpc('relato_escola',{p_id:r.id,p_texto:'',p_status:null}).then(function(){ r.novas=0; if(r.status==='novo') r.status='andamento'; },function(){}); },true);
+  function salvarMarca(p,msg){ return rpc('escola_config_marca',{p_escola:atual().escola.id,p:p}).then(function(){ toast(msg||'Salvo'); return carregar(); },function(er){ toast(er.message); return carregar(); }); }
+  $('mkCorOk').onclick=function(){ salvarMarca({cor:$('mkCor').value},'Cor salva'); };
+  $('mkCor0').onclick=function(){ salvarMarca({cor:''},'Cor padrão de volta'); };
+  $('mkLogo0').onclick=function(){ if(confirm('Tirar o logo do colégio?')) salvarMarca({logo:''},'Logo retirado'); };
+  $('mkPin').onchange=function(){ var on=this.checked; salvarMarca({exigir_pin:on},on?'PIN exigido para todos da escola':'PIN deixou de ser obrigatório'); };
+  $('mkSair').onchange=function(){ var v=+this.value||0; salvarMarca({sair_min:v},v?'O app vai sair sozinho depois de parado':'O app não sai mais sozinho'); };
+  $('mkLogoArq').onchange=function(){ var f=this.files&&this.files[0]; this.value=''; if(!f) return;
+    var img=new Image(), url=URL.createObjectURL(f);
+    img.onload=function(){ var k=Math.min(1,256/Math.max(img.width,img.height)), cv=document.createElement('canvas');
+      cv.width=Math.max(1,Math.round(img.width*k)); cv.height=Math.max(1,Math.round(img.height*k)); cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height); URL.revokeObjectURL(url);
+      var d=cv.toDataURL('image/png'); if(d.length>250000) d=cv.toDataURL('image/webp',.85); if(d.length>250000) d=cv.toDataURL('image/jpeg',.8);
+      salvarMarca({logo:d},'Logo salvo'); };
+    img.onerror=function(){ toast('Não consegui abrir esta imagem.'); };
+    img.src=url; };
   function linha(x,botoes,extra){
     return '<div class="row"><div class="grow"><div class="nome">'+ICO[x.papel]+' '+E(x.nome)+(x.eu?' <span class="pill">você</span>':'')+(x.exemplo?' <span class="pill">exemplo</span>':'')+'</div>'
       +'<div class="meta">'+PAPEL[x.papel]+(onde(x)?' · '+E(onde(x)):'')+'</div>'+(extra?'<div class="meta">'+extra+'</div>':'')+'</div><div class="acts">'+botoes+'</div></div>';
@@ -282,6 +380,11 @@
         if(!confirm('Remover '+x.nome+' da escola?\n\nA pessoa sai da escola e perde o acesso ao app.'+(rr?' Os '+rr+' responsáveis cadastrados para esse aluno também saem.':'')+'\n\nIsso não pode ser desfeito.')) return;
         return rpc('escola_excluir_membro',{p_id:x.id}).then(function(){ toast('Removido(a)'); return carregar(); },function(er){ toast(er.message); }); }
     }
+    var ro=e.target.closest('[data-rok]');
+    if(ro){ var id=ro.getAttribute('data-rok'), tx=document.querySelector('[data-rtx="'+id+'"]'), t=(tx&&tx.value||'').trim(); if(!t){ toast('Escreva a resposta'); return; }
+      ro.disabled=true; return rpc('relato_escola',{p_id:+id,p_texto:t,p_status:null}).then(function(){ toast('Resposta enviada'); return carregar(); },function(er){ ro.disabled=false; toast(er.message); }); }
+    var rs=e.target.closest('[data-rst]');
+    if(rs) return rpc('relato_escola',{p_id:+rs.getAttribute('data-rid'),p_texto:'',p_status:rs.getAttribute('data-rst')}).then(function(){ toast('Marcado como '+STATUS[rs.getAttribute('data-rst')]); return carregar(); },function(er){ toast(er.message); });
     var d=e.target.closest('[data-den]');
     if(d) rpc('chat_resolver',{p_denuncia:+d.getAttribute('data-den'),p_apagar:d.hasAttribute('data-apagar')}).then(function(){ toast(d.hasAttribute('data-apagar')?'Mensagem apagada':'Denúncia encerrada'); return carregar(); },function(er){ toast(er.message); });
   });
