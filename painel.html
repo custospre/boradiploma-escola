@@ -8,6 +8,7 @@
 <title>Painel da Escola</title>
 <script src="escola-config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="relatorios.js?v=1"></script>
 <style>
   :root{--bg:#f5f3ee;--surface:#fffdf8;--fg:#1f1b16;--muted:#6b6459;--line:#e2ddd2;--accent:#1f4e8c;--soft:#e3ebf6}
   @media (prefers-color-scheme:dark){:root{--bg:#17150f;--surface:#211e17;--fg:#ece7dc;--muted:#a79f90;--line:#352f25;--accent:#9cc0ef;--soft:#1d2a3a;color-scheme:dark}}
@@ -153,6 +154,8 @@
       <div class="tabacc" id="acc"><div class="empty">Carregando…</div></div>
     </div>
 
+    <div class="card"><h2>📈 Relatórios da escola</h2><p class="hint">Por turma, curso, colégio, disciplina, idade, notas, uso do app, famílias e aniversariantes. Cada tabela baixa em planilha.</p><div id="relBox"><div class="empty">Carregando…</div></div></div>
+
     <div class="card"><h2>🛟 Disque-denúncia</h2><p class="hint">Relatos de alunos e responsáveis. Nos anônimos a escola não sabe quem enviou, mas a pessoa vê a resposta no app dela.</p><div id="rels"><div class="empty">Carregando…</div></div></div>
 
     <div class="card"><h2>📊 Simulados da escola</h2><p class="hint">Porcentagem de acertos nos simulados respondidos.</p><div id="relat"><div class="empty">Carregando…</div></div></div>
@@ -174,14 +177,14 @@
       <div data-p="professor"><label>Dá aula nas turmas</label><div class="checks" id="nTurmas"></div></div>
       <button class="primary" id="nSalvar" style="max-width:280px">Salvar e gerar convite</button>
       <details style="margin-top:14px"><summary class="meta" style="cursor:pointer">＋ Criar turma</summary>
-        <div class="grid2"><div><label for="tNome">Nome da turma</label><input id="tNome" placeholder="Ex.: 1º Ano A"></div><div><label for="tTurno">Turno</label><select id="tTurno"><option>Manhã</option><option>Tarde</option><option>Noite</option><option>Integral</option></select></div></div>
+        <div class="grid2"><div><label for="tNome">Nome da turma</label><input id="tNome" placeholder="Ex.: 1º Ano A"></div><div><label for="tTurno">Turno</label><select id="tTurno"><option>Manhã</option><option>Tarde</option><option>Noite</option><option>Integral</option></select></div></div><label for="tCurso">Curso (série/etapa) <span class="meta">— junta as turmas nos relatórios</span></label><input id="tCurso" list="tCursos" placeholder="Ex.: 1º ano do Ensino Médio" autocomplete="off"><datalist id="tCursos"><option value="6º ano do Ensino Fundamental"><option value="7º ano do Ensino Fundamental"><option value="8º ano do Ensino Fundamental"><option value="9º ano do Ensino Fundamental"><option value="1º ano do Ensino Médio"><option value="2º ano do Ensino Médio"><option value="3º ano do Ensino Médio"><option value="Pré-vestibular"><option value="Pré-ENEM"></datalist>
         <button class="btn btn-ac" id="tSalvar" style="margin-top:10px">Criar turma</button>
       </details>
     </div>
 
     <div class="card" id="cardImp">
       <h2>📥 Importar lista de alunos e pais</h2>
-      <p class="hint">Traga de uma vez a relação da secretaria: planilha do <b>Excel</b> (.xlsx, .xls ou .csv), documento do <b>Word</b> (.docx com tabela) ou cole o texto. Cada linha: <b>aluno</b>, <b>turma</b> e até 2 <b>responsáveis</b> com parentesco e WhatsApp ou e-mail. Turma que ainda não existe é criada.</p>
+      <p class="hint">Traga de uma vez a relação da secretaria: planilha do <b>Excel</b> (.xlsx, .xls ou .csv), documento do <b>Word</b> (.docx com tabela) ou cole o texto. Cada linha: <b>aluno</b>, <b>turma</b> (e, se quiser, <b>nascimento</b> e <b>curso</b>) e até 2 <b>responsáveis</b> com parentesco e WhatsApp ou e-mail. Turma que ainda não existe é criada.</p>
       <div class="acts"><label class="btn btn-ac" for="impArq">📄 Escolher arquivo</label><input type="file" id="impArq" accept=".xlsx,.xls,.csv,.txt,.docx" hidden><button class="btn-sec" id="impModelo">⬇ Baixar planilha modelo</button></div>
       <label for="impTxt">ou cole aqui as linhas (copiadas do Excel ou do Word)</label>
       <textarea id="impTxt" rows="5" placeholder="Aluno; Turma; Responsável; Parentesco; WhatsApp&#10;Ana Clara Souza; 1º Ano A; Juliana Souza; Mãe; (49) 99999-0000"></textarea>
@@ -216,7 +219,7 @@
   var $ = function(id){ return document.getElementById(id); };
   var PAPEL = {aluno:'Aluno(a)',responsavel:'Responsável',professor:'Professor(a)',coordenacao:'Coordenação'};
   var ICO = {aluno:'🎒',responsavel:'👨‍👩‍👧',professor:'🧑‍🏫',coordenacao:'🏫'};
-  var escolas = [], sel = 0, den = [], marcas = [], rels = [], relat = null, acc = null;
+  var escolas = [], sel = 0, den = [], marcas = [], rels = [], relat = null, acc = null, relEsc = null;
 
   function E(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function toast(m){ var t=$('toast'); t.textContent=m; t.classList.add('on'); clearTimeout(toast._t); toast._t=setTimeout(function(){ t.classList.remove('on'); },3200); }
@@ -251,7 +254,8 @@
         rpc('escola_marca').then(function(x){ marcas=x||[]; },function(){ marcas=[]; }),
         rpc('relatos_escola',{p_escola:id}).then(function(x){ rels=x||[]; },function(){ rels=null; }),
         rpc('simulados_relatorio',{p_escola:id}).then(function(x){ relat=x||{}; },function(){ relat=null; }),
-        rpc('escola_acessos',{p_escola:id}).then(function(x){ acc=x||[]; },function(){ acc=null; })]);
+        rpc('escola_acessos',{p_escola:id}).then(function(x){ acc=x||[]; },function(){ acc=null; }),
+        rpc('escola_relatorio',{p_escola:id}).then(function(x){ relEsc=x; },function(e){ relEsc={erro:e.message}; })]);
     }).then(function(){ if(escolas.length) desenhar(); }, function(e){ toast('⚠️ '+e.message); });
   }
   $('selEscola').onchange=function(){ sel=+this.value; carregar(); };
@@ -315,6 +319,8 @@
         +'<div class="relmsg">'+E(r.texto)+'</div>'+(r.conversa||[]).map(function(x){ return '<div class="relmsg'+(x.da_escola?' esc':'')+'"><span class="meta">'+(x.da_escola?'Coordenação':(r.anonimo?'Anônimo':E(r.quem||'')))+' · '+data(x.em)+'</span><br>'+E(x.texto)+'</div>'; }).join('')
         +'<textarea rows="2" placeholder="Responder" data-rtx="'+r.id+'"></textarea><div class="acts" style="margin-top:6px"><button class="btn-ac" data-rok="'+r.id+'">Enviar resposta</button>'
         +['andamento','resolvido'].map(function(st){ return '<button class="btn-sec" data-rst="'+st+'" data-rid="'+r.id+'"'+(r.status===st?' disabled':'')+'>'+STATUS[st]+'</button>'; }).join('')+'</div></details>'; }).join(''):'<div class="empty">Nenhum relato recebido.</div>');
+    if(relEsc&&!relEsc.erro&&window.BDRelatorios) window.BDRelatorios.desenhar($('relBox'),relEsc,atual().escola.nome);
+    else $('relBox').innerHTML='<div class="empty">⚠️ '+E(relEsc&&relEsc.erro?relEsc.erro:'Não consegui carregar os relatórios.')+'</div>';
     var R=relat;
     if(!R) $('relat').innerHTML='<div class="empty">⚠️ Não consegui carregar o relatório.</div>';
     else if(!(R.turmas||[]).length) $('relat').innerHTML='<div class="empty">Nenhum simulado respondido ainda. Quando os alunos fizerem, as médias aparecem aqui.</div>';
@@ -405,7 +411,7 @@
     },function(er){ bt.disabled=false; toast(er.message); });
   };
   $('tSalvar').onclick=function(){
-    rpc('escola_salvar_turma',{p_escola:atual().escola.id,p_id:null,p_nome:$('tNome').value,p_turno:$('tTurno').value}).then(function(){ $('tNome').value=''; toast('Turma criada'); return carregar(); },function(er){ toast(er.message); });
+    rpc('escola_salvar_turma',{p_escola:atual().escola.id,p_id:null,p_nome:$('tNome').value,p_turno:$('tTurno').value,p_curso:$('tCurso').value}).then(function(){ $('tNome').value=''; $('tCurso').value=''; toast('Turma criada'); return carregar(); },function(er){ toast(er.message); });
   };
 
   // ---------- importar lista (Excel, Word ou colado) ----------
@@ -422,6 +428,12 @@
     return ls.map(function(l){ return sep?csvSplit(l,sep):l.split(/\s+[-–—|]\s+/).map(function(x){ return x.trim(); }); });
   }
   function maiuscula(t){ t=String(t||'').trim(); var m={mae:'Mãe',pai:'Pai',avo:'Avó',tia:'Tia',tio:'Tio',madrasta:'Madrasta',padrasto:'Padrasto',responsavel:'Responsável'}[semAcento(t)]; return m||(t?t.charAt(0).toUpperCase()+t.slice(1):''); }
+  // data de nascimento: aceita 25/03/2010, 25-03-2010, 2010-03-25 e o número de data do Excel
+  function dataISO(v){ v=String(v||'').trim(); if(!v) return ''; var m;
+    if(/^\d{4,5}(\.\d+)?$/.test(v)&&+v>10000&&+v<60000){ var d=new Date(Date.UTC(1899,11,30)+Math.floor(+v)*86400000); return d.toISOString().slice(0,10); }
+    if((m=/^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(v))) return m[1]+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[3]).slice(-2);
+    if((m=/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})$/.exec(v))){ var a=+m[3]; if(a<100) a+=a>30?1900:2000; return a+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[1]).slice(-2); }
+    return ''; }
   function mapear(rows){
     rows=(rows||[]).map(function(r){ return (r||[]).map(function(c){ return String(c==null?'':c).trim(); }); }).filter(function(r){ return r.some(Boolean); });
     if(!rows.length) return [];
@@ -435,6 +447,8 @@
       else if(/^(nome da )?mae$/.test(x)){ nR++; col['resp'+Math.min(nR,2)]=i; col['fixo'+Math.min(nR,2)]='Mãe'; cab=true; }
       else if(/^(nome do )?pai$/.test(x)){ nR++; col['resp'+Math.min(nR,2)]=i; col['fixo'+Math.min(nR,2)]='Pai'; cab=true; }
       else if(/respons/.test(x)){ nR++; col['resp'+Math.min(nR,2)]=i; cab=true; }
+      else if(/nasc|aniversario/.test(x)){ col.nascimento=i; cab=true; }
+      else if(/curso|etapa|segmento/.test(x)){ col.curso=i; cab=true; }
       else if(/turma|serie|classe|sala/.test(x)){ col.turma=i; cab=true; }
       else if(/turno|periodo/.test(x)){ col.turno=i; cab=true; }
       else if(col.aluno==null&&/alun|estudante|^nome/.test(x)){ col.aluno=i; cab=true; }
@@ -442,7 +456,7 @@
     if(!cab||col.aluno==null) col={aluno:0,turma:1,resp1:2,par1:3,contato1:4,resp2:5,par2:6,contato2:7}; else rows=rows.slice(1);
     return rows.map(function(r){
       function g(k){ return col[k]==null?'':(r[col[k]]||''); }
-      var o={aluno:g('aluno'),turma:g('turma'),turno:g('turno'),contato_aluno:g('contato_aluno')};
+      var o={aluno:g('aluno'),turma:g('turma'),turno:g('turno'),curso:g('curso'),nascimento:dataISO(g('nascimento')),contato_aluno:g('contato_aluno')};
       [1,2].forEach(function(k){
         var nm=g('resp'+k), pr=g('par'+k)||col['fixo'+k]||'', mm=/^(.*?)\s*\(([^)]+)\)\s*$/.exec(nm);
         if(mm&&!g('par'+k)){ nm=mm[1]; pr=mm[2]; }      // "Juliana Souza (Mãe)"
@@ -470,9 +484,9 @@
     var nn=Object.keys(novas);
     function rp(o,k){ return o['resp'+k]?E(o['resp'+k])+(o['par'+k]?' <span class="meta">('+E(o['par'+k])+')</span>':'')+(o['contato'+k]?'<br><span class="meta">'+E(o['contato'+k])+'</span>':''):'<span class="meta">—</span>'; }
     var h='<p class="sub" style="margin:12px 0 6px"><b>'+lista.length+'</b> aluno(s) e <b>'+nr+'</b> responsável(is)'+(nn.length?' · turma(s) nova(s): <b>'+E(nn.map(function(k){ return novas[k]; }).join(', '))+'</b>':'')+'</p>'
-      +'<div class="tabimp"><table><thead><tr><th>#</th><th>Aluno</th><th>Turma</th><th>Responsável 1</th><th>Responsável 2</th></tr></thead><tbody>'
+      +'<div class="tabimp"><table><thead><tr><th>#</th><th>Aluno</th><th>Turma</th><th>Nascimento</th><th>Responsável 1</th><th>Responsável 2</th></tr></thead><tbody>'
       +lista.slice(0,300).map(function(o,i){ var nova=o.turma&&tur.indexOf(semAcento(o.turma))<0;
-        return '<tr><td>'+(i+1)+'</td><td>'+E(o.aluno)+(o.contato_aluno?'<br><span class="meta">'+E(o.contato_aluno)+'</span>':'')+'</td><td>'+(o.turma?E(o.turma)+(nova?' <span class="pill">nova</span>':''):'<span class="meta">sem turma</span>')+'</td><td>'+rp(o,1)+'</td><td>'+rp(o,2)+'</td></tr>'; }).join('')
+        return '<tr><td>'+(i+1)+'</td><td>'+E(o.aluno)+(o.contato_aluno?'<br><span class="meta">'+E(o.contato_aluno)+'</span>':'')+'</td><td>'+(o.turma?E(o.turma)+(nova?' <span class="pill">nova</span>':''):'<span class="meta">sem turma</span>')+(o.curso?'<br><span class="meta">'+E(o.curso)+'</span>':'')+'</td><td>'+(o.nascimento?o.nascimento.split('-').reverse().join('/'):'<span class="meta">—</span>')+'</td><td>'+rp(o,1)+'</td><td>'+rp(o,2)+'</td></tr>'; }).join('')
       +'</tbody></table></div>'+(lista.length>300?'<p class="meta">Mostrando as 300 primeiras linhas.</p>':'')
       +'<div class="acts" style="margin-top:10px"><button class="btn-lib" id="impOk">✅ Importar '+lista.length+' aluno(s)</button><button class="btn-sec" id="impNao">Cancelar</button></div>'
       +'<p class="hint" style="margin-top:6px">Confira a tabela antes de importar. Aluno já cadastrado com o mesmo nome na mesma turma não é duplicado.</p>';
@@ -491,9 +505,9 @@
   function baixarXlsx(nome,linhas){ return carregaScript(LIB_XLSX).then(function(){ var wb=XLSX.utils.book_new(), sh=XLSX.utils.aoa_to_sheet(linhas);
     sh['!cols']=linhas[0].map(function(){ return {wch:24}; }); XLSX.utils.book_append_sheet(wb,sh,'Lista'); XLSX.writeFile(wb,nome); },function(er){ toast(er.message); }); }
   $('impModelo').onclick=function(){ baixarXlsx('modelo-alunos.xlsx',[
-    ['Aluno','Turma','Turno','Responsável 1','Parentesco 1','WhatsApp ou e-mail 1','Responsável 2','Parentesco 2','WhatsApp ou e-mail 2'],
-    ['Ana Clara Souza','1º Ano A','Manhã','Juliana Souza','Mãe','(49) 99999-0000','Ricardo Souza','Pai','(49) 98888-0000'],
-    ['Bruno Oliveira','1º Ano A','Manhã','Patrícia Oliveira','Mãe','patricia@email.com','','','']]); };
+    ['Aluno','Nascimento','Turma','Curso','Turno','Responsável 1','Parentesco 1','WhatsApp ou e-mail 1','Responsável 2','Parentesco 2','WhatsApp ou e-mail 2'],
+    ['Ana Clara Souza','25/03/2010','1º Ano A','1º ano do Ensino Médio','Manhã','Juliana Souza','Mãe','(49) 99999-0000','Ricardo Souza','Pai','(49) 98888-0000'],
+    ['Bruno Oliveira','08/11/2009','1º Ano A','1º ano do Ensino Médio','Manhã','Patrícia Oliveira','Mãe','patricia@email.com','','','']]); };
   $('impConv').onclick=function(){ var m=atual(), base=location.origin+location.pathname.replace(/[^\/]*$/,'')+'app.html?convite=';
     var l=(m.membros||[]).filter(function(x){ return !x.entrou&&!x.bloqueado; }).sort(function(a,b){ return a.nome.localeCompare(b.nome); });
     if(!l.length){ toast('Nenhum convite aguardando'); return; }
