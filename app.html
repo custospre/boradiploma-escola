@@ -5326,6 +5326,23 @@ if ('serviceWorker' in navigator) {
 .escnott th{background:var(--accent-soft)}
 .escnott .n{text-align:right}
 .rl-red{color:#c0392b;font-weight:700}
+.escchl{padding:4px 12px}
+.escch{display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid var(--line)}
+.escch:first-child{border-top:0}
+.escch>span{flex:1;min-width:0}
+.escch.f>span{color:#c0392b;font-weight:700}
+.escchs{display:flex;gap:4px;flex:none}
+.escchs button{border:1px solid var(--line);background:var(--bg);color:inherit;border-radius:9px;padding:6px 0;width:40px;font:inherit;font-size:.85rem;font-weight:700;cursor:pointer}
+.escchs button.on[data-s="P"]{background:#2e8b57;border-color:#2e8b57;color:#fff}
+.escchs button.on[data-s="A"]{background:#d39b22;border-color:#d39b22;color:#fff}
+.escchs button.on[data-s="F"]{background:#c0392b;border-color:#c0392b;color:#fff}
+.escchst{border-radius:12px;padding:10px 12px;margin:10px 0;font-size:.92rem;border:1px solid var(--line)}
+.escchst.lib{border-color:#2e8b57;background:rgba(46,139,87,.1)}
+.escchst.pend{border-color:#d39b22;background:rgba(211,155,34,.12)}
+.escchc{font-weight:600;margin:4px 2px 8px;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center}
+.escchb{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;flex:none}
+.escchok{color:#2e8b57;font-weight:700}
+.escchpd{color:#b07800;font-weight:700}
 @media (max-width:560px){ .escnotf{grid-template-columns:1fr 1fr} .escnotf .escf:first-child{grid-column:1/-1} }
 .escradio label{display:block;line-height:1.35;padding:6px 0 6px 26px;text-indent:-26px}
 .escradio input{margin:0 8px 0 0;width:auto;vertical-align:-2px}
@@ -5385,7 +5402,7 @@ if ('serviceWorker' in navigator) {
     return Promise.all([rpc('escola_painel'), rpc('chat_grupos').catch(function(){ return []; }), rpc('avisos_meus').catch(function(){ return []; }), rpc('materiais_lista').catch(function(){ return null; }), rpc('simulados_meus').catch(function(){ return []; }), rpc('relatos_meus',{p_protocolos:protos()}).catch(function(){ return []; }), rpc('escola_marca').catch(function(){ return null; })]).then(function(r){
       dados=Array.isArray(r[0])?r[0]:[]; grupos=Array.isArray(r[1])?r[1]:[]; avisos=Array.isArray(r[2])?r[2]:[]; if(Array.isArray(r[3])) guardaMats(r[3]); sims=Array.isArray(r[4])?r[4]:[]; relatos=Array.isArray(r[5])?r[5]:[]; if(sel>=dados.length) sel=0;
       if(Array.isArray(r[6])){ marcas=r[6]; aplicarMarca(); }
-      var m=atual(); denuncias=[]; avisosEsc=[]; filhoRes={}; relatosEsc=[]; acessos={}; relat={}; simProf=null; relDados={}; notasMinhas=null; notasFilho={};
+      var m=atual(); denuncias=[]; avisosEsc=[]; filhoRes={}; relatosEsc=[]; acessos={}; relat={}; simProf=null; relDados={}; notasMinhas=null; notasFilho={}; chamPend=null; freqMinha=null; freqFilho={};
       if(!m||m.papel!=='coordenacao') return;
       if(m.escola.modelo&&!exemploOk[m.escola.id]){ // escola de exemplo: põe umas conversas para mostrar (só se o grupo estiver vazio)
         exemploOk[m.escola.id]=1;
@@ -5461,6 +5478,7 @@ if ('serviceWorker' in navigator) {
     if(gs.length) h+=secao('grupos','💬 Grupos das turmas',gs.length+' grupo'+(gs.length===1?'':'s')+(nn?' · <b class="escnovas">'+nn+' com novidade</b>':''),listaGrupos(gs));
     var rn=relatosEsc.filter(function(r){ return r.status==='novo'||+r.novas>0; }).length;
     h+=secao('rels','🛟 Disque-denúncia',relatosEsc.length+' relato'+(relatosEsc.length===1?'':'s')+(rn?' · <b class="escnovas">'+rn+' para ver</b>':''),listaRelatosEsc());
+    var cp=pendentesHTML(m,true); if(cp) h+=secao('chpend','⏳ Chamadas sem liberar','os pais ainda não sabem dessas faltas',cp);
     h+=secao('relat2','📈 Relatórios da escola','turma, curso, disciplina, idade, notas…',relatoriosHTML(m));
     h+=secao('relat','📊 Simulados da escola','médias por turma, matéria e aluno',relatorioHTML(m));
     h+=secao('seg','🎨 Marca e 🔒 segurança',marcaDe(m.escola.id).exigir_pin?'PIN exigido':'PIN opcional',segCoordHTML(m));
@@ -5470,7 +5488,7 @@ if ('serviceWorker' in navigator) {
       var ps=pr.filter(function(p){ return (p.turmas||[]).indexOf(t.id)>=0; });
       var k='t'+t.id;
       h+='<div class="escgrp'+(aberto[k]?' open':'')+'"><button type="button" class="escgh" data-ea="tog" data-k="'+k+'"><span class="esccar">▶</span>'+E(t.nome)+(t.turno?' <span class="escdim">· '+E(t.turno)+'</span>':'')+(t.curso?' <span class="escdim">· '+E(t.curso)+'</span>':'')+'<span class="esccount">'+as.length+' aluno'+(as.length===1?'':'s')+'</span></button><div class="escgb">';
-      h+='<div class="escacts"><button type="button" class="escbtn2" data-ea="novo" data-papel="aluno" data-turma="'+t.id+'">＋ Aluno</button><button type="button" class="escbtn2" data-ea="notas" data-t="'+t.id+'">📝 Notas</button><button type="button" class="escbtn2" data-ea="turma" data-id="'+t.id+'">✏️ Editar turma</button><button type="button" class="escbtn2" data-ea="delturma" data-id="'+t.id+'">🗑 Excluir turma</button></div>';
+      h+='<div class="escacts"><button type="button" class="escbtn2" data-ea="novo" data-papel="aluno" data-turma="'+t.id+'">＋ Aluno</button><button type="button" class="escbtn2" data-ea="notas" data-t="'+t.id+'">📝 Notas</button><button type="button" class="escbtn2" data-ea="chamada" data-t="'+t.id+'">✅ Chamada</button><button type="button" class="escbtn2" data-ea="turma" data-id="'+t.id+'">✏️ Editar turma</button><button type="button" class="escbtn2" data-ea="delturma" data-id="'+t.id+'">🗑 Excluir turma</button></div>';
       if(!as.length) h+='<div class="escdim" style="padding:6px 2px">Nenhum aluno nesta turma ainda.</div>';
       as.forEach(function(a){
         h+=linha(a);
@@ -5497,7 +5515,7 @@ if ('serviceWorker' in navigator) {
     var t=m.turma, h='<div class="esccard"><h3>🎒 Minha turma: '+(t?E(t.nome)+(t.turno?' · '+E(t.turno):''):'ainda sem turma')+'</h3>';
     h+='<p class="escdim">Colegas ('+(m.colegas||[]).length+')</p>'+tags(m.colegas);
     h+='<p class="escdim" style="margin-top:10px">Professores</p><ul class="esclist">'+((m.professores||[]).map(function(p){ return '<li>'+E(p.nome)+(p.materia?' <span class="escdim">· '+E(p.materia)+'</span>':'')+'</li>'; }).join('')||'<li class="escdim">nenhum ainda</li>')+'</ul></div>';
-    return h+avisosHTML(m)+minhasNotasHTML(m)+simHTML(m)+tutorHTML()+matsHTML(m)+gruposHTML(m,'turma')+relatosHTML(m)+segAparelhoHTML();
+    return h+avisosHTML(m)+minhasNotasHTML(m)+minhaFreqHTML(m)+simHTML(m)+tutorHTML()+matsHTML(m)+gruposHTML(m,'turma')+relatosHTML(m)+segAparelhoHTML();
   }
   // ---------- pais: provas, trabalhos e agenda da escola do filho (o que ele anota no app dele) ----------
   var filhoRes={};
@@ -5537,13 +5555,14 @@ if ('serviceWorker' in navigator) {
       h+='<div class="esccard"><h3>👨‍👩‍👧 Pais da turma</h3><ul class="esclist">'+(m.pais_turma.map(function(p){ return '<li>'+E(p.nome)+' <span class="escdim">· '+E(p.parentesco||'responsável')+' de '+E(primeiro(p.filho))+'</span></li>'; }).join('')||'<li class="escdim">nenhum outro ainda</li>')+'</ul></div>';
       h+=gruposHTML(m,'pais');
     }
-    return h+notasFilhoHTML2(m)+notasFilhoHTML(m)+relatosHTML(m)+segAparelhoHTML()+(it.length?embreve(it):'');
+    return h+notasFilhoHTML2(m)+freqFilhoHTML(m)+notasFilhoHTML(m)+relatosHTML(m)+segAparelhoHTML()+(it.length?embreve(it):'');
   }
   function telaProf(m){
     var h='';
     (m.turmas||[]).forEach(function(t){ h+='<div class="esccard"><h3>📚 '+E(t.nome)+(t.turno?' <span class="escdim">· '+E(t.turno)+'</span>':'')+'</h3><p class="escdim">'+(m.materia?E(m.materia)+' · ':'')+t.alunos.length+' aluno'+(t.alunos.length===1?'':'s')+'</p>'+tags(t.alunos)
-      +(t.id?'<div class="escacts" style="margin-top:10px"><button type="button" class="escbtn" data-ea="matnovo" data-t="'+t.id+'">📎 Enviar material para esta turma</button><button type="button" class="escbtn2" data-ea="notas" data-t="'+t.id+'">📝 Lançar notas</button></div>':'')+'</div>'; });
+      +(t.id?'<div class="escacts" style="margin-top:10px"><button type="button" class="escbtn2" data-ea="matnovo" data-t="'+t.id+'">📎 Enviar material para esta turma</button><button type="button" class="escbtn" data-ea="chamada" data-t="'+t.id+'">✅ Fazer chamada</button><button type="button" class="escbtn2" data-ea="notas" data-t="'+t.id+'">📝 Lançar notas</button></div>':'')+'</div>'; });
     if(!h) h='<div class="escvazio">A coordenação ainda não ligou você a nenhuma turma.</div>';
+    h=pendentesHTML(m)+h;
     return h+simProfHTML(m)+matsHTML(m,true)+gruposHTML(m,'turma')+segAparelhoHTML();
   }
 
@@ -5607,8 +5626,8 @@ if ('serviceWorker' in navigator) {
   // a conversa ocupa o resto da tela, deixando livre embaixo o lugar dos botões flutuantes (Página anterior e microfone)
   function ajusta(){ var c=box&&box.querySelector('.escchat'); if(!c) return; var top=c.getBoundingClientRect().top+(window.pageYOffset||0); c.style.height=Math.max(240,window.innerHeight-top-84)+'px'; var en=c.querySelector('.escenvio'); if(en&&en.getBoundingClientRect().bottom>window.innerHeight-70) window.scrollBy(0,en.getBoundingClientRect().bottom-window.innerHeight+80); }
   window.addEventListener('resize',function(){ if(chat) ajusta(); });
-  function pararTudo(){ chat=null; clearInterval(chatTimer); avAb=null; clearInterval(avisoTimer); matAb=null; simAb=null; relAb=null; tutorAb=null; notasAb=null; }
-  function ocupado(){ return !!(chat||avAb||matAb||simAb||relAb||tutorAb||notasAb); }
+  function pararTudo(){ chat=null; clearInterval(chatTimer); avAb=null; clearInterval(avisoTimer); matAb=null; simAb=null; relAb=null; tutorAb=null; notasAb=null; chamAb=null; }
+  function ocupado(){ return !!(chat||avAb||matAb||simAb||relAb||tutorAb||notasAb||chamAb); }
 
   // ---------- simulado da semana (feito pela IA: 5 questões, 5 alternativas, explicação de cada uma) ----------
   var LETRA=['A','B','C','D','E'];
@@ -6407,7 +6426,7 @@ if ('serviceWorker' in navigator) {
   // ---------- 📈 relatórios da escola (coordenação) — o desenho fica em relatorios.js (o mesmo do Painel) ----------
   var relDados={}, relScript=null;
   function carregaRelJs(){ if(window.BDRelatorios) return Promise.resolve(); if(relScript) return relScript;
-    return relScript=new Promise(function(ok,erro){ var s=document.createElement('script'); s.src='relatorios.js?v=1'; s.onload=ok; s.onerror=function(){ relScript=null; erro(new Error('Não consegui abrir os relatórios (precisa de internet).')); }; document.head.appendChild(s); }); }
+    return relScript=new Promise(function(ok,erro){ var s=document.createElement('script'); s.src='relatorios.js?v=2'; s.onload=ok; s.onerror=function(){ relScript=null; erro(new Error('Não consegui abrir os relatórios (precisa de internet).')); }; document.head.appendChild(s); }); }
   function relatoriosHTML(m){
     var r=relDados[m.escola.id];
     if(!r){ relDados[m.escola.id]={carregando:true};
@@ -6480,6 +6499,101 @@ if ('serviceWorker' in navigator) {
       fechar(); aviso(ok+' nota'+(ok===1?'':'s')+' preenchida'+(ok===1?'':'s')+(nao.length?' · não achei: '+nao.slice(0,3).join(', ')+(nao.length>3?'…':''):'')+'. Confira e toque em Salvar notas.');
     });
   }
+  // ---------- ✅ chamada: o professor marca e corrige à vontade; pais e aluno só veem (e são avisados) depois que ele LIBERA ----------
+  var chamAb=null, chamPend=null, freqMinha=null, freqFilho={};
+  var STN={P:'presente',A:'atrasado',F:'falta'};
+  function hojeISO(){ var d=new Date(); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
+  function abrirChamada(tid,materia,data,aula){
+    var m=atual(), t=(m.turmas||[]).filter(function(x){ return x.id===tid; })[0]; if(!t) return;
+    pararTudo(); chamAb={t:t,materia:m.papel==='professor'?(m.materia||''):(materia||''),data:data||hojeISO(),aula:+aula||1,d:null,prof:m.papel==='professor',st:{},mudou:false};
+    buscarChamada(); window.scrollTo({top:0});
+  }
+  function buscarChamada(){
+    var a=chamAb; if(!a) return;
+    if(!a.materia){ a.d={alunos:[],presencas:[],recentes:[],materias:[]}; desenharChamada(); return; }
+    a.d=null; desenharChamada();
+    rpc('chamada_abrir',{p_turma:a.t.id,p_materia:a.materia,p_data:a.data,p_aula:a.aula}).then(function(d){ if(chamAb!==a) return; a.d=d; a.st={};
+      var ps={}; (d.presencas||[]).forEach(function(p){ ps[p.aluno_id]=p.status; });
+      (d.alunos||[]).forEach(function(x){ a.st[x.id]=ps[x.id]||'P'; }); a.mudou=false; desenharChamada(); },
+      function(e){ if(chamAb===a){ a.d={erro:e.message}; desenharChamada(); } });
+  }
+  function desenharChamada(){
+    var a=chamAb, d=a.d, h='<div class="escavw"><div class="escchead"><button type="button" class="escbtn2" data-ea="sair">← Voltar</button><div class="escctit"><b>✅ Chamada · '+E(a.t.nome)+'</b><small>'+E(a.materia||'escolha a matéria')+'</small></div></div>';
+    var aulas=''; for(var i=1;i<=8;i++) aulas+='<option value="'+i+'"'+(i===a.aula?' selected':'')+'>'+i+'ª aula</option>';
+    h+='<div class="escnotf">'+campo('Matéria',a.prof&&a.materia?'<input id="chMat" value="'+E(a.materia)+'" readonly>':'<input id="chMat" list="chMats" value="'+E(a.materia)+'" placeholder="Ex.: Matemática" autocomplete="off"><datalist id="chMats">'+((d&&d.materias)||[]).map(function(x){ return '<option value="'+E(x)+'">'; }).join('')+'</datalist>')
+      +campo('Dia','<input id="chDia" type="date" value="'+E(a.data)+'" max="'+hojeISO()+'">')+campo('Aula','<select id="chAula">'+aulas+'</select>')+'</div>';
+    if(!a.materia) h+='<div class="escvazio">Escreva a matéria e toque fora do campo.</div>';
+    else if(!d) h+='<div class="escvazio">Carregando…</div>';
+    else if(d.erro) h+='<div class="escvazio">⚠️ '+E(d.erro)+'</div>';
+    else if(!d.alunos.length) h+='<div class="escvazio">Nenhum aluno nesta turma.</div>';
+    else {
+      var c=d.chamada, q={P:0,A:0,F:0}; d.alunos.forEach(function(x){ q[a.st[x.id]||'P']++; });
+      if(!c) h+='<div class="escchst">📝 <b>Chamada nova.</b> Todos começam como presentes: toque em <b>F</b> para quem faltou e em <b>A</b> para quem chegou atrasado.</div>';
+      else if(!c.liberada_em) h+='<div class="escchst pend">🔒 <b>Salva, mas ainda não liberada.</b> Só você e a coordenação veem. Corrija à vontade (aluno que chegou atrasado) e libere quando a frequência do dia estiver certa.</div>';
+      else h+='<div class="escchst lib">✅ <b>Liberada em '+dataHora(c.liberada_em)+'.</b> Pais e alunos já veem. Se corrigir agora, quem mudar recebe aviso no celular.</div>';
+      h+='<div class="escchc"><span>'+q.P+' presente'+(q.P===1?'':'s')+'</span><span style="color:#b07800">'+q.A+' atrasado'+(q.A===1?'':'s')+'</span><span style="color:#c0392b">'+q.F+' falta'+(q.F===1?'':'s')+'</span><button type="button" class="esclink" data-ea="chtodos">Marcar todos presentes</button></div>';
+      h+='<div class="esccard escchl">'+d.alunos.map(function(x){ var v=a.st[x.id]||'P';
+        return '<div class="escch'+(v==='F'?' f':'')+'"><span>'+E(x.nome)+'</span><span class="escchs" role="group" aria-label="'+E(x.nome)+'">'
+          +['P','A','F'].map(function(k){ return '<button type="button" data-ea="chst" data-id="'+x.id+'" data-s="'+k+'" title="'+STN[k]+'" aria-pressed="'+(v===k)+'"'+(v===k?' class="on"':'')+'>'+k+'</button>'; }).join('')+'</span></div>'; }).join('')+'</div>';
+      h+='<p class="escdim" style="font-size:.8rem;margin:6px 2px">P = presente · A = atrasado (conta como presença) · F = falta</p>';
+      if(!c||!c.liberada_em) h+='<div class="escacts"><button type="button" class="escbtn2" data-ea="chsalvar">💾 Salvar (ainda não avisa ninguém)</button><button type="button" class="escbtn" data-ea="chliberar">📣 Liberar para pais e alunos</button>'+(c?'<button type="button" class="escbtn2" data-ea="chexcluir">🗑 Apagar esta chamada</button>':'')+'</div>'
+        +'<p class="escdim" style="font-size:.8rem">Pode salvar e voltar depois para corrigir. Os pais só recebem o aviso de falta quando você tocar em <b>Liberar</b>.</p>';
+      else h+='<div class="escacts"><button type="button" class="escbtn" data-ea="chsalvar">💾 Salvar correção</button></div>';
+      var rc=d.recentes||[];
+      if(rc.length) h+='<h2 class="esch2">🗓 Chamadas de '+E(a.materia)+' nesta turma</h2><div class="esccard escpzc">'+rc.map(function(r){ var eu=c&&r.id===c.id;
+        return '<div class="escpz"><span class="escpzd">'+dmY(r.data)+'</span><span class="escpzt">'+(eu?'<b>':'')+r.aula+'ª aula'+(eu?'</b> <span class="escdim">(aberta)</span>':'')+' · '+r.faltas+' falta'+(+r.faltas===1?'':'s')+(+r.atrasos?' · '+r.atrasos+' atraso'+(+r.atrasos===1?'':'s'):'')+'<br>'
+          +(r.liberada?'<small class="escchok">✅ liberada</small>':'<small class="escchpd">⏳ esperando liberar</small>')+'</span>'+(eu?'':'<button type="button" class="esclink" data-ea="chabrir" data-dt="'+r.data+'" data-au="'+r.aula+'">abrir</button>')+'</div>'; }).join('')+'</div>';
+    }
+    h+='</div>'; box.innerHTML=h;
+  }
+  function salvarChamada(lib){
+    var a=chamAb; if(!a||!a.d||!a.d.alunos||!a.d.alunos.length) return;
+    var lista=a.d.alunos.map(function(x){ return {aluno_id:x.id,status:a.st[x.id]||'P'}; }), nf=lista.filter(function(x){ return x.status==='F'; }).length;
+    if(lib&&!confirm('Liberar a chamada de '+dmY(a.data)+' ('+a.aula+'ª aula)?\n\n'+(nf?(nf===1?'Os pais do aluno que faltou vão':'Os pais dos '+nf+' alunos que faltaram vão')+' receber aviso no celular.':'Ninguém faltou: os pais não recebem aviso.')+'\nDepois de liberar ainda dá para corrigir.')) return;
+    [].forEach.call(box.querySelectorAll('[data-ea="chsalvar"],[data-ea="chliberar"]'),function(b){ b.disabled=true; });
+    var jaLib=a.d.chamada&&a.d.chamada.liberada_em;
+    rpc('chamada_salvar',{p_turma:a.t.id,p_materia:a.materia,p_data:a.data,p_aula:a.aula,p_lista:lista,p_liberar:!!lib}).then(function(r){
+      aviso(lib?'Chamada liberada'+(nf?' · pais de '+nf+' aluno'+(nf===1?'':'s')+' avisados':''):(jaLib?'Correção salva e avisada':'Chamada salva. Ainda não liberada: ninguém foi avisado.'));
+      chamPend=null; relDados={}; buscarChamada(); },
+      function(e){ [].forEach.call(box.querySelectorAll('[data-ea="chsalvar"],[data-ea="chliberar"]'),function(b){ b.disabled=false; }); aviso(e.message); });
+  }
+  function chamadaMudou(){ return !chamAb||!chamAb.mudou||confirm('Você mudou presenças sem salvar. Sair desta chamada mesmo assim?'); }
+  // lista de chamadas salvas que ainda não foram liberadas (professor: no topo; coordenação: em sanfona)
+  function pendentesHTML(m,coord){
+    if(chamPend==null){ chamPend=false; rpc('chamadas_pendentes').then(function(l){ chamPend=Array.isArray(l)?l:[]; },function(){ chamPend=[]; }).then(function(){ if(!ocupado()) desenhar(); }); return ''; }
+    if(!chamPend) return '';
+    var l=chamPend.filter(function(c){ return c.escola_id===m.escola.id; }); if(!l.length) return '';
+    var lin=l.map(function(c){ return '<div class="escpz"><span class="escpzd">'+dmY(c.data)+'</span><span class="escpzt"><b>'+E(c.turma)+'</b> · '+E(c.materia)+' · '+c.aula+'ª aula<br><small class="escdim">'+c.faltas+' falta'+(+c.faltas===1?'':'s')+(+c.atrasos?' · '+c.atrasos+' atraso'+(+c.atrasos===1?'':'s'):'')+'</small></span>'
+      +'<span class="escchb"><button type="button" class="escbtn2" data-ea="chver" data-t="'+c.turma_id+'" data-m="'+E(c.materia)+'" data-dt="'+c.data+'" data-au="'+c.aula+'">Ver</button><button type="button" class="escbtn" data-ea="chlib" data-id="'+c.id+'">📣 Liberar</button></span></div>'; }).join('');
+    if(coord) return '<div class="esccard escpzc">'+lin+'</div>';
+    return '<div class="esccard escchst pend"><h3>⏳ Chamadas esperando você liberar ('+l.length+')</h3><p class="escdim">Os pais só ficam sabendo das faltas depois que você libera. Confira se quem chegou atrasado já está marcado.</p>'+lin+'</div>';
+  }
+  function liberarPendente(id){
+    var c=(chamPend||[]).filter(function(x){ return String(x.id)===String(id); })[0];
+    if(c&&!confirm('Liberar a chamada de '+c.turma+' · '+c.materia+' ('+dmY(c.data)+', '+c.aula+'ª aula)?\n\n'+(+c.faltas?(+c.faltas===1?'Os pais do aluno que faltou vão':'Os pais dos '+c.faltas+' alunos que faltaram vão')+' receber aviso no celular.':'Ninguém faltou.'))) return;
+    rpc('chamada_liberar',{p_id:+id}).then(function(){ aviso('Chamada liberada'); chamPend=null; relDados={}; desenhar(); },function(e){ aviso(e.message); });
+  }
+  // aluno: minha frequência · pais: frequência do filho (só chamadas liberadas)
+  function freqResumoHTML(l,vazio){
+    if(!l.length) return '<div class="escdim" style="padding:2px 2px 6px">'+vazio+'</div>';
+    var por={}; l.forEach(function(x){ var o=por[x.materia]=por[x.materia]||{n:0,F:0,A:0,f:[]}; o.n++; if(x.status==='F'){ o.F++; o.f.push(dmY(x.data)); } if(x.status==='A') o.A++; });
+    return '<div class="esccard escpzc">'+Object.keys(por).sort(function(x,y){ return x.localeCompare(y); }).map(function(k){ var o=por[k], p=Math.round(100*(o.n-o.F)/o.n);
+      return '<div class="escpz"><span class="escpzt"><b>'+E(k)+'</b><br><small class="escdim">'+o.n+' aula'+(o.n===1?'':'s')+' · '+o.F+' falta'+(o.F===1?'':'s')+(o.A?' · '+o.A+' atraso'+(o.A===1?'':'s'):'')+(o.f.length?'<br>Faltas: '+o.f.slice(0,6).join(', ')+(o.f.length>6?'…':''):'')+'</small></span><span class="escpzq'+(p<75?' rl-red':'')+'">'+p+'% presença</span></div>'; }).join('')
+      +'<p class="escdim" style="margin-top:8px;font-size:.8rem">A lei pede pelo menos 75% de presença no ano (LDB, art. 24). Só aparecem as chamadas que o professor já liberou.</p></div>';
+  }
+  function minhaFreqHTML(m){
+    var h='<h2 class="esch2">✅ Minha frequência</h2>';
+    if(freqMinha==null){ freqMinha=false; rpc('frequencia_minha').then(function(l){ freqMinha=Array.isArray(l)?l:[]; },function(){ freqMinha=[]; }).then(function(){ if(!ocupado()) desenhar(); }); return h+'<div class="escdim">Carregando…</div>'; }
+    if(freqMinha===false) return h+'<div class="escdim">Carregando…</div>';
+    return h+freqResumoHTML(freqMinha.filter(function(x){ return x.escola_id===m.escola.id; }),'Quando os professores liberarem as chamadas, sua frequência aparece aqui.');
+  }
+  function freqFilhoHTML(m){
+    var pn=E(primeiro((m.filho||{}).nome)), c=freqFilho[m.membro_id], h='<h2 class="esch2">✅ Frequência de '+pn+'</h2>';
+    if(!c){ freqFilho[m.membro_id]={carregando:true}; rpc('frequencia_filho',{p_membro:m.membro_id}).then(function(l){ freqFilho[m.membro_id]={l:Array.isArray(l)?l:[]}; },function(){ freqFilho[m.membro_id]={l:[]}; }).then(function(){ if(!ocupado()) desenhar(); }); return h+'<div class="escdim">Carregando…</div>'; }
+    if(c.carregando) return h+'<div class="escdim">Carregando…</div>';
+    return h+freqResumoHTML(c.l,'Quando os professores liberarem as chamadas, a frequência de '+pn+' aparece aqui. Se '+pn+' faltar, chega aviso no seu celular.');
+  }
+
   // aluno: minhas notas · pais: notas do filho
   function boletimHTML(l,vazio){
     if(!l.length) return '<div class="escdim" style="padding:2px 2px 6px">'+vazio+'</div>';
@@ -6507,7 +6621,17 @@ if ('serviceWorker' in navigator) {
     if(a==='tog'){ var k=b.getAttribute('data-k'); aberto[k]=!aberto[k]; b.parentNode.classList.toggle('open',aberto[k]); return; }
     if(a==='sel'){ sel=+b.getAttribute('data-i')||0; denuncias=[]; desenhar(); carregar(); return; }
     if(a==='chat'){ abrirChat(b.getAttribute('data-t'),b.getAttribute('data-g')); return; }
-    if(a==='sair'){ sairChat(); return; }
+    if(a==='sair'){ if(!chamadaMudou()) return; sairChat(); return; }
+    if(a==='chamada'){ abrirChamada(b.getAttribute('data-t')); return; }
+    if(a==='chver'){ abrirChamada(b.getAttribute('data-t'),b.getAttribute('data-m'),b.getAttribute('data-dt'),b.getAttribute('data-au')); return; }
+    if(a==='chst'&&chamAb){ chamAb.st[id]=b.getAttribute('data-s'); chamAb.mudou=true; var yc=window.pageYOffset; desenharChamada(); window.scrollTo(0,yc); return; }
+    if(a==='chtodos'&&chamAb&&chamAb.d){ (chamAb.d.alunos||[]).forEach(function(x){ chamAb.st[x.id]='P'; }); chamAb.mudou=true; var yt=window.pageYOffset; desenharChamada(); window.scrollTo(0,yt); return; }
+    if(a==='chsalvar'){ salvarChamada(false); return; }
+    if(a==='chliberar'){ salvarChamada(true); return; }
+    if(a==='chabrir'&&chamAb){ if(!chamadaMudou()) return; chamAb.data=b.getAttribute('data-dt'); chamAb.aula=+b.getAttribute('data-au')||1; buscarChamada(); window.scrollTo({top:0}); return; }
+    if(a==='chlib'){ liberarPendente(id); return; }
+    if(a==='chexcluir'&&chamAb&&chamAb.d&&chamAb.d.chamada){ if(!confirm('Apagar a chamada de '+dmY(chamAb.data)+' ('+chamAb.aula+'ª aula)? Ninguém foi avisado dela ainda.')) return;
+      rpc('chamada_excluir',{p_id:chamAb.d.chamada.id}).then(function(){ aviso('Chamada apagada'); chamPend=null; buscarChamada(); },function(er){ aviso(er.message); }); return; }
     if(a==='aviso'){ abrirAviso(id,b.getAttribute('data-m')); return; }
     if(a==='mat'){ verMaterial(id); return; }
     if(a==='simgerar'){ gerarSimulado(); return; }
@@ -6588,7 +6712,12 @@ if ('serviceWorker' in navigator) {
   })(0);
 
   window.bdEscola={ abrir:function(el){ if(box!==el){ box=el; box.addEventListener('click',clique);
-    box.addEventListener('change',function(e){ if(notasAb&&/^nt(Mat|Av|Max)$/.test(e.target.id)){ var v=e.target.value.trim();
+    box.addEventListener('change',function(e){ if(chamAb&&/^ch(Mat|Dia|Aula)$/.test(e.target.id)){ var cv=e.target.value.trim();
+        if(e.target.id==='chMat'&&(!cv||cv===chamAb.materia)) return;
+        if(!chamadaMudou()){ desenharChamada(); return; }
+        if(e.target.id==='chDia'){ if(!cv) return; if(cv>hojeISO()){ aviso('Esse dia ainda não chegou.'); desenharChamada(); return; } chamAb.data=cv; } else if(e.target.id==='chAula') chamAb.aula=+cv||1; else chamAb.materia=cv;
+        buscarChamada(); return; }
+      if(notasAb&&/^nt(Mat|Av|Max)$/.test(e.target.id)){ var v=e.target.value.trim();
         if(e.target.id==='ntMax'){ notasAb.max=+v.replace(',','.')||10; return; }
         if(e.target.id==='ntAv'){ if(!v) return; notasAb.aval=v; var ex=((notasAb.d&&notasAb.d.notas)||[]).filter(function(n){ return n.avaliacao.toLowerCase()===v.toLowerCase(); })[0]; if(ex) notasAb.max=+ex.nota_max; desenharNotas(); return; }
         if(v&&v!==notasAb.materia){ notasAb.materia=v; notasAb.d=null; desenharNotas(); buscarNotas(); } return; }

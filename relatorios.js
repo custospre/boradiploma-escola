@@ -3,7 +3,7 @@
    disciplina, idade, notas, engajamento, famílias e aniversariantes. Cada tabela baixa em planilha (CSV para o Excel). */
 (function(){
   var ABAS=[['geral','📋 Visão geral'],['turma','🏷️ Por turma'],['curso','🎓 Por curso'],['disc','📚 Por disciplina'],['idade','🎂 Por idade'],
-    ['notas','📊 Por notas'],['atencao','⚠️ Alunos em atenção'],['engaj','📱 Uso do app'],['familia','👨‍👩‍👧 Famílias'],['aniv','🎉 Aniversariantes']];
+    ['notas','📊 Por notas'],['freq','✅ Frequência'],['atencao','⚠️ Alunos em atenção'],['engaj','📱 Uso do app'],['familia','👨‍👩‍👧 Famílias'],['aniv','🎉 Aniversariantes']];
   var MESES=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
   function E(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function css(){
@@ -39,7 +39,8 @@
     var porA={}; A.forEach(function(a){ var t=T[a.turma_id]||{}; a.turma=t.nome||'Sem turma'; a.curso=t.curso||'Sem curso'; a.turno=t.turno||''; a.idade=idade(a.nascimento); a.notas=[]; porA[a.id]=a; });
     var N=[]; (D.notas||[]).forEach(function(n){ var a=porA[n.aluno_id]; if(!a) return; var v=+n.nota/(+n.nota_max||10)*10; var x={aluno:a,materia:n.materia,avaliacao:n.avaliacao,v:v}; a.notas.push(x); N.push(x); });
     var S=[]; (D.sim_materias||[]).forEach(function(s){ var a=porA[s.aluno_id]; if(a&&s.total) S.push({aluno:a,materia:s.materia,p:100*s.acertos/s.total}); });
-    return {T:T,A:A,N:N,S:S};
+    var F=[]; (D.presencas||[]).forEach(function(p){ var a=porA[p.aluno_id]; if(a&&+p.aulas) F.push({aluno:a,materia:p.materia,aulas:+p.aulas,faltas:+p.faltas||0,atrasos:+p.atrasos||0}); });
+    return {T:T,A:A,N:N,S:S,F:F,pend:+D.chamadas_pendentes||0};
   }
   function filtra(P,esc,disc){
     function ok(a){ if(!esc||esc==='*') return true; var k=esc.split(':'); return k[0]==='c'?a.curso===k[1]:a.turma_id===k[1]; }
@@ -47,7 +48,10 @@
     var N=P.N.filter(function(n){ return ok(n.aluno)&&(!disc||n.materia.toLowerCase()===disc.toLowerCase()); });
     var S=P.S.filter(function(s){ return ok(s.aluno)&&(!disc||s.materia.toLowerCase()===disc.toLowerCase()); });
     A.forEach(function(a){ a.med=media(N.filter(function(n){ return n.aluno===a; }).map(function(n){ return n.v; })); });
-    return {A:A,N:N,S:S};
+    var Fq=(P.F||[]).filter(function(f){ return ok(f.aluno)&&(!disc||f.materia.toLowerCase()===disc.toLowerCase()); });
+    A.forEach(function(a){ var l=Fq.filter(function(f){ return f.aluno===a; }), au=l.reduce(function(s,f){ return s+f.aulas; },0), fa=l.reduce(function(s,f){ return s+f.faltas; },0);
+      a.aulas=au; a.faltas=fa; a.atrasos=l.reduce(function(s,f){ return s+f.atrasos; },0); a.freq=au?Math.round(100*(au-fa)/au):null; });
+    return {A:A,N:N,S:S,Fq:Fq};
   }
   // tabela + CSV
   function tabela(id,cab,linhas,csv){ // cab: [[título,'n'?]], linhas: [[html...]], csv: [[texto...]]
@@ -133,8 +137,26 @@
           todos.map(function(a){ return [E(a.nome),E(a.turma)].concat(mats.map(function(m){ var v=mm(a,m); return v==null?'–':(v<6?'<span class="rl-red">'+f1(v)+'</span>':f1(v)); })).concat([f1(a.med)]); }),
           todos.map(function(a){ return [a.nome,a.turma].concat(mats.map(function(m){ var v=mm(a,m); return v==null?'':f1(v); })).concat([a.med==null?'':f1(a.med)]); })); }
     }
+    else if(id==='freq'){
+      var com=A.filter(function(a){ return a.freq!=null; }), tau=com.reduce(function(s,a){ return s+a.aulas; },0), tfa=com.reduce(function(s,a){ return s+a.faltas; },0), baixa=com.filter(function(a){ return a.freq<75; });
+      h=(P.pend?'<p class="rl-dim">⏳ '+P.pend+' chamada'+(P.pend===1?'':'s')+' ainda sem liberar pelos professores (não entram nestes números).</p>':'')
+        +'<div class="rl-k"><div><b>'+(tau?Math.round(100*(tau-tfa)/tau)+'%':'–')+'</b>presença média</div><div><b>'+tfa+'</b>faltas registradas</div><div><b style="color:#c0392b">'+baixa.length+'</b>alunos abaixo de 75%</div><div><b>'+(A.length-com.length)+'</b>alunos sem chamada liberada</div></div>';
+      if(!com.length){ h+='<p class="rl-dim">Quando os professores fizerem e liberarem as chamadas, a frequência aparece aqui.</p>'; }
+      else {
+        var g9=grupo(com,N,S,function(a){ return a.turma; }).map(function(o){ var au=o.A.reduce(function(s,a){ return s+a.aulas; },0), fa=o.A.reduce(function(s,a){ return s+a.faltas; },0), at=o.A.reduce(function(s,a){ return s+a.atrasos; },0), bx=o.A.filter(function(a){ return a.freq<75; }).length, p=au?Math.round(100*(au-fa)/au):null;
+          return {h:[E(o.k),o.A.length,fa,at,barraP(p),bx?'<span class="rl-red">'+bx+'</span>':'0'],c:[o.k,o.A.length,fa,at,p,bx]}; });
+        h+='<div class="rl-h">Por turma</div>'+tabela('freq',[['Turma'],['Alunos','n'],['Faltas','n'],['Atrasos','n'],['Presença'],['Abaixo de 75%','n']],g9.map(function(x){ return x.h; }),g9.map(function(x){ return x.c; }));
+        var md={}; F.Fq.forEach(function(f){ var o=md[f.materia]=md[f.materia]||{au:0,fa:0}; o.au+=f.aulas; o.fa+=f.faltas; });
+        var L9=Object.keys(md).sort().map(function(k){ var o=md[k], p=Math.round(100*(o.au-o.fa)/o.au); return {h:[E(k),o.fa,barraP(p)],c:[k,o.fa,p]}; });
+        h+='<div class="rl-h">Por disciplina</div>'+tabela('freqd',[['Disciplina'],['Faltas','n'],['Presença']],L9.map(function(x){ return x.h; }),L9.map(function(x){ return x.c; }));
+        var L10=com.slice().sort(function(x,y){ return x.freq-y.freq||y.faltas-x.faltas; });
+        h+='<div class="rl-h">Por aluno (menor presença primeiro)</div>'+tabela('freqa',[['Aluno'],['Turma'],['Aulas','n'],['Faltas','n'],['Atrasos','n'],['Presença']],
+          L10.map(function(a){ return [E(a.nome),E(a.turma),a.aulas,a.faltas,a.atrasos,a.freq<75?'<span class="rl-red">'+a.freq+'%</span>':barraP(a.freq)]; }),L10.map(function(a){ return [a.nome,a.turma,a.aulas,a.faltas,a.atrasos,a.freq]; }));
+      }
+    }
     else if(id==='atencao'){
       var L5=[]; A.forEach(function(a){ var mot=[];
+        if(a.freq!=null&&a.freq<75) mot.push('presença de '+a.freq+'% (abaixo de 75%)');
         var porM={}; N.filter(function(n){ return n.aluno===a; }).forEach(function(n){ (porM[n.materia]=porM[n.materia]||[]).push(n.v); });
         var baixas=Object.keys(porM).filter(function(m){ return media(porM[m])<6; }); if(baixas.length) mot.push('média abaixo de 6 em '+baixas.join(', '));
         var d=dias(a.ultimo_acesso); if(!a.entrou) mot.push('ainda não entrou no app'); else if(d==null||d>14) mot.push(d==null?'sem acesso registrado':'sem usar o app há '+d+' dias');
