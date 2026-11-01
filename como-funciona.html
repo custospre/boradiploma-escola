@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="pt-BR" translate="no">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="google" content="notranslate">
+<title>Como funciona · BoraDiploma Escola</title>
+<link rel="icon" href="icons/icon-192.png">
+<script src="escola-config.js"></script>
+<style>
+/* Página para alunos e famílias: árvore de cima para baixo (escola → nuvem → 3 galhos) e os caminhos, filtráveis por público */
+:root{
+  --bg:#f5f7fb; --card:#ffffff; --fg:#14213a; --muted:#56637a; --line:#c9d3e3;
+  --escola:#1f4e8c; --escola-s:#e3ebf6;
+  --prof:#137a6b; --prof-s:#dcf1ec;
+  --aluno:#a8730a; --aluno-s:#fbf0d6;
+  --pais:#a8434f; --pais-s:#f8e2e4;
+  --nuvem:#4a5874; --nuvem-s:#e8ecf3;
+  --ouro:#c9a24a;
+  --f:"Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1622; --card:#172234; --fg:#e7edf7; --muted:#9fb0c8; --line:#2c3b54;
+  --escola:#9cc0ef; --escola-s:#1d2a3a; --prof:#6fd3c1; --prof-s:#14302c;
+  --aluno:#f0c55a; --aluno-s:#33290f; --pais:#f19aa4; --pais-s:#3a1d22;
+  --nuvem:#b6c2d8; --nuvem-s:#1f2a3c; --ouro:#f0c55a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1622; --card:#172234; --fg:#e7edf7; --muted:#9fb0c8; --line:#2c3b54;
+  --escola:#9cc0ef; --escola-s:#1d2a3a; --prof:#6fd3c1; --prof-s:#14302c;
+  --aluno:#f0c55a; --aluno-s:#33290f; --pais:#f19aa4; --pais-s:#3a1d22;
+  --nuvem:#b6c2d8; --nuvem-s:#1f2a3c; --ouro:#f0c55a; color-scheme:dark}
+
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:16px;line-height:1.5}
+.wrap{max-width:1040px;margin:0 auto;padding-block:max(14px, env(safe-area-inset-top, 0px)) 48px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
+h1,h2,h3{text-wrap:balance;margin:0;line-height:1.2}
+.voltar{display:inline-flex;align-items:center;gap:6px;font:inherit;font-weight:600;font-size:.95rem;color:var(--escola);background:var(--card);
+  border:1.5px solid var(--line);border-radius:999px;padding:7px 14px;text-decoration:none}
+.voltar:focus-visible,.filtros button:focus-visible{outline:3px solid var(--ouro);outline-offset:2px}
+header{display:grid;gap:10px;margin:18px 0 28px}
+.marca{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.05rem}
+.marca img{width:40px;height:40px;object-fit:contain;border-radius:8px;background:#fff}
+.marca b{color:var(--ouro)}
+.marca small{display:block;font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--escola);font-weight:700}
+header h1{font-size:clamp(1.7rem,4.6vw,2.6rem);font-weight:800;letter-spacing:-.01em;max-width:20ch}
+header p{color:var(--muted);font-size:1.06rem;max-width:62ch;margin:0}
+
+/* árvore */
+.tree{display:grid;justify-items:center}
+.node{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:15px 17px;width:100%;min-width:0}
+.node h3{font-size:1.15rem;font-weight:700;display:flex;align-items:center;gap:10px}
+.node .sub{color:var(--muted);font-size:.92rem;margin:2px 0 9px}
+.ic{width:32px;height:32px;border-radius:50%;display:inline-grid;place-items:center;flex:none;font-size:1rem}
+.node ul{margin:0;padding:0;list-style:none;display:grid;gap:6px}
+.node li{padding-left:16px;position:relative;font-size:.97rem}
+.node li::before{content:"";position:absolute;left:2px;top:.62em;width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.45}
+.root{max-width:720px;border:2px solid var(--escola)} .root .ic{background:var(--escola-s)}
+.root ul{grid-template-columns:repeat(auto-fit,minmax(220px,1fr));column-gap:20px}
+.stem{width:2px;height:30px;background:var(--line)}
+.trunk{max-width:600px;background:var(--nuvem-s);border-color:var(--nuvem);text-align:center}
+.trunk h3{justify-content:center} .trunk .ic{background:var(--card)}
+.trunk p{margin:0;font-size:.97rem}
+.branches{position:relative;width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;padding-top:30px}
+.branches::before{content:"";position:absolute;top:0;left:16.66%;right:16.66%;height:2px;background:var(--line)}
+.branches > .node{position:relative}
+.branches > .node::before{content:"";position:absolute;top:-30px;left:50%;width:2px;height:30px;background:var(--line)}
+.prof{border-top:5px solid var(--prof)} .prof h3{color:var(--prof)} .prof .ic{background:var(--prof-s)} .prof li::before{background:var(--prof);opacity:1}
+.aluno{border-top:5px solid var(--aluno)} .aluno h3{color:var(--aluno)} .aluno .ic{background:var(--aluno-s)} .aluno li::before{background:var(--aluno);opacity:1}
+.pais{border-top:5px solid var(--pais)} .pais h3{color:var(--pais)} .pais .ic{background:var(--pais-s)} .pais li::before{background:var(--pais);opacity:1}
+.back{width:100%;margin-top:26px;border:2px dashed var(--escola);border-radius:14px;padding:14px 17px;background:var(--escola-s)}
+.back h3{font-size:1.05rem;color:var(--escola)}
+.back p{margin:6px 0 0;font-size:.96rem}
+
+/* seções */
+.sec{margin-top:52px}
+.sec > h2{font-size:clamp(1.45rem,3.4vw,2rem);font-weight:800}
+.sec > p{color:var(--muted);max-width:62ch;margin:6px 0 16px}
+
+/* o que chega no celular */
+.avisos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.avs{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:15px 17px;min-width:0}
+.avs h3{font-size:1.08rem;margin-bottom:10px}
+.avs.a{border-top:5px solid var(--aluno)} .avs.a h3{color:var(--aluno)}
+.avs.r{border-top:5px solid var(--pais)} .avs.r h3{color:var(--pais)}
+.notif{display:grid;gap:8px}
+.notif div{border:1px solid var(--line);border-radius:12px;padding:8px 11px;background:var(--bg);font-size:.93rem}
+.notif small{display:block;color:var(--muted);font-size:.8rem}
+
+/* fluxo */
+.filtros{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.filtros button{font:inherit;font-weight:600;font-size:.95rem;padding:7px 14px;border-radius:999px;border:1.5px solid var(--line);
+  background:var(--card);color:var(--fg);cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.filtros button i{width:10px;height:10px;border-radius:50%;display:inline-block}
+.filtros button[aria-pressed="true"]{border-color:var(--fg);background:var(--fg);color:var(--bg)}
+.mostrando{margin:0 0 16px;color:var(--muted);font-size:.95rem}
+.mostrando b{color:var(--fg)}
+.fluxos{display:grid;gap:14px}
+.fluxo{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:15px 17px;display:grid;gap:10px;overflow:hidden;max-height:1400px;
+  transition:max-height .4s ease, opacity .3s ease, padding .4s ease, margin .4s ease, border-width .4s ease}
+.fluxo.fechado{max-height:0;opacity:0;padding-block:0;border-width:0;margin-top:-14px}
+.fluxo .top{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px}
+.fluxo h3{font-size:1.08rem;font-weight:700}
+.tags{display:flex;gap:5px;flex-wrap:wrap}
+.tag{font-size:.74rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:1px 8px;border-radius:999px}
+.t-escola{background:var(--escola-s);color:var(--escola)} .t-prof{background:var(--prof-s);color:var(--prof)}
+.t-aluno{background:var(--aluno-s);color:var(--aluno)} .t-pais{background:var(--pais-s);color:var(--pais)}
+.passos{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none}
+.passos li{display:flex;align-items:center;gap:6px;font-size:.94rem}
+.passos li span{padding:6px 11px;border-radius:9px;border:1px solid var(--line);background:var(--bg)}
+.passos li span.escola{border-color:var(--escola);background:var(--escola-s)}
+.passos li span.prof{border-color:var(--prof);background:var(--prof-s)}
+.passos li span.aluno{border-color:var(--aluno);background:var(--aluno-s)}
+.passos li span.pais{border-color:var(--pais);background:var(--pais-s)}
+.passos li span.nuvem{border-color:var(--nuvem);background:var(--nuvem-s)}
+.passos li + li::before{content:"→";color:var(--muted);font-weight:700}
+.voce{margin:0;font-size:.93rem;color:var(--muted)}
+.voce b{color:var(--fg)}
+
+/* quem vê o quê */
+.ve{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.ve div{border-left:4px solid var(--escola);padding:6px 0 6px 14px}
+.ve h3{font-size:1rem;margin-bottom:2px}
+.ve p{margin:0;color:var(--muted);font-size:.94rem}
+.seg{margin-top:18px;display:flex;flex-wrap:wrap;gap:6px}
+.seg span{font-size:.86rem;padding:4px 11px;border-radius:999px;background:var(--card);border:1px solid var(--line);color:var(--muted)}
+footer{margin-top:44px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:.92rem;display:grid;gap:12px}
+
+@media (max-width:760px){
+  .branches{grid-template-columns:1fr;padding-top:0;gap:0}
+  .branches::before{display:none}
+  .branches > .node{margin-top:30px}
+  .avisos{grid-template-columns:1fr}
+  .fluxo{max-height:2400px}
+}
+@media (prefers-reduced-motion:reduce){.fluxo{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="voltar" href="app.html" id="voltar">← Voltar para o app</a>
+
+  <header>
+    <div class="marca"><img id="logo" src="icons/logo.png" alt=""><div id="nome">Bora<b>Diploma</b><small id="sub">Escola</small></div></div>
+    <h1>Como a informação circula na sua escola</h1>
+    <p>Escola, professores, alunos e famílias usam o mesmo app. Cada pessoa recebe só o que é dela, na hora certa, e os dados de cada aluno ficam protegidos.</p>
+  </header>
+
+  <!-- ÁRVORE -->
+  <div class="tree" aria-label="Árvore do caminho da informação">
+    <div class="node root">
+      <h3><span class="ic">🏫</span> Coordenação da escola</h3>
+      <div class="sub">Quem organiza tudo</div>
+      <ul>
+        <li>Cadastra as turmas, os alunos, as famílias e os professores</li>
+        <li>Envia os avisos da escola, com resposta em particular</li>
+        <li>Cuida das regras de segurança do app</li>
+        <li>Lê o Disque-denúncia e as denúncias dos grupos</li>
+      </ul>
+    </div>
+    <div class="stem" aria-hidden="true"></div>
+    <div class="node trunk">
+      <h3><span class="ic">☁️</span> Nuvem do app</h3>
+      <p>Guarda tudo com login individual e entrega a cada pessoa só o que ela pode ver, no celular e no computador.</p>
+    </div>
+    <div class="branches">
+      <div class="node prof">
+        <h3><span class="ic">🧑‍🏫</span> Professor</h3>
+        <div class="sub">Vê só as turmas e a matéria dele</div>
+        <ul>
+          <li>Faz a chamada, corrige quem chegou atrasado e libera quando estiver pronta</li>
+          <li>Lança as notas oficiais</li>
+          <li>Envia o material da turma</li>
+          <li>Acompanha os simulados e participa do grupo da turma</li>
+        </ul>
+      </div>
+      <div class="node aluno">
+        <h3><span class="ic">🎒</span> Aluno</h3>
+        <div class="sub">O app de estudo do dia a dia</div>
+        <ul>
+          <li>Agenda de provas e trabalhos, com lembrete no celular</li>
+          <li>Matérias com anotações e o material do professor</li>
+          <li>Simulado da semana e tira-dúvidas com IA</li>
+          <li>Notas, frequência, avisos e grupo da turma</li>
+        </ul>
+      </div>
+      <div class="node pais">
+        <h3><span class="ic">👨‍👩‍👧</span> Família</h3>
+        <div class="sub">Vê só o próprio filho e a escola</div>
+        <ul>
+          <li>Aviso a cada nota lançada</li>
+          <li>Aviso de falta e de atraso</li>
+          <li>Provas, prazos e frequência do filho</li>
+          <li>Avisos da escola, com resposta em particular</li>
+        </ul>
+      </div>
+    </div>
+    <div class="back">
+      <h3>↺ E a escola acompanha</h3>
+      <p>Com as notas, a frequência e os simulados, a coordenação e os professores percebem cedo quem precisa de ajuda e podem agir antes da prova ou do fim do bimestre.</p>
+    </div>
+  </div>
+
+  <!-- O QUE CHEGA NO CELULAR -->
+  <section class="sec" aria-labelledby="t-avisos">
+    <h2 id="t-avisos">O que chega no seu celular</h2>
+    <p>Exemplos dos avisos que o app manda. Eles chegam mesmo com o app fechado; de madrugada, esperam até as 6h.</p>
+    <div class="avisos">
+      <div class="avs a">
+        <h3>🎒 Para o aluno</h3>
+        <div class="notif">
+          <div>⏰ Prova de História, em 60 min<small>o lembrete da agenda que você mesmo marcou</small></div>
+          <div>📊 Nota lançada: Matemática<small>1º Bimestre</small></div>
+          <div>📚 Novo material de Biologia<small>o professor enviou para a sua turma</small></div>
+          <div>📢 Feira de Ciências na quinta<small>aviso da escola; dá para responder em particular</small></div>
+        </div>
+      </div>
+      <div class="avs r">
+        <h3>👨‍👩‍👧 Para a família</h3>
+        <div class="notif">
+          <div>📊 Nota lançada: Matemática<small>1º Bimestre · Ana</small></div>
+          <div>🚫 Ana faltou: Matemática<small>31/10 · 1ª aula</small></div>
+          <div>⏰ Atraso de Ana: Português<small>31/10 · 2ª aula</small></div>
+          <div>📢 Reunião de pais no sábado<small>aviso da escola; dá para responder em particular</small></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FLUXO -->
+  <section class="sec" aria-labelledby="t-fluxo">
+    <h2 id="t-fluxo">Fluxo da Informação</h2>
+    <p>Cada linha mostra de onde a informação sai, por onde passa e quem recebe. Toque num público para ver só os caminhos dele; os outros se recolhem.</p>
+    <div class="filtros" role="group" aria-label="Filtrar por público">
+      <button id="f-todos" data-f="todos" aria-pressed="true">Todos</button>
+      <button id="f-aluno" data-f="aluno" aria-pressed="false"><i style="background:var(--aluno)"></i>Aluno</button>
+      <button id="f-pais" data-f="pais" aria-pressed="false"><i style="background:var(--pais)"></i>Família</button>
+      <button id="f-prof" data-f="prof" aria-pressed="false"><i style="background:var(--prof)"></i>Professor</button>
+      <button id="f-escola" data-f="escola" aria-pressed="false"><i style="background:var(--escola)"></i>Escola</button>
+    </div>
+    <p class="mostrando" id="mostrando" aria-live="polite">Mostrando <b>todos os caminhos</b>.</p>
+
+    <div class="fluxos">
+      <article class="fluxo" data-p="escola aluno pais">
+        <div class="top"><h3>Aviso da escola</h3><div class="tags"><span class="tag t-escola">Escola</span><span class="tag t-aluno">Aluno</span><span class="tag t-pais">Família</span></div></div>
+        <ol class="passos"><li><span class="escola">A escola escreve o aviso</span></li><li><span class="escola">Escolhe quem recebe: todos, uma turma, as famílias ou um aluno</span></li><li><span class="nuvem">Chega no celular</span></li><li><span class="pais">Você responde, se quiser</span></li><li><span class="escola">A resposta vai só para a escola</span></li></ol>
+        <p class="voce"><b>Para você:</b> os avisos chegam direto, sem se perder em grupo de mensagens, e ninguém responde por você.</p>
+      </article>
+
+      <article class="fluxo" data-p="prof aluno pais escola">
+        <div class="top"><h3>Nota oficial</h3><div class="tags"><span class="tag t-prof">Professor</span><span class="tag t-aluno">Aluno</span><span class="tag t-pais">Família</span><span class="tag t-escola">Escola</span></div></div>
+        <ol class="passos"><li><span class="prof">O professor lança a nota</span></li><li><span class="nuvem">Aviso no celular</span></li><li><span class="aluno">O aluno vê na matéria</span></li><li><span class="pais">A família recebe aviso a cada nota</span></li><li><span class="escola">A escola acompanha a média</span></li></ol>
+        <p class="voce"><b>Para você:</b> a família acompanha o desempenho na hora, e não só no fim do bimestre.</p>
+      </article>
+
+      <article class="fluxo" data-p="prof pais aluno escola">
+        <div class="top"><h3>Presença e faltas</h3><div class="tags"><span class="tag t-prof">Professor</span><span class="tag t-pais">Família</span><span class="tag t-aluno">Aluno</span><span class="tag t-escola">Escola</span></div></div>
+        <ol class="passos"><li><span class="prof">O professor faz a chamada</span></li><li><span class="prof">Corrige quem chegou atrasado</span></li><li><span class="prof">Libera a chamada quando estiver pronta</span></li><li><span class="pais">A família recebe aviso de falta ou atraso</span></li><li><span class="aluno">O aluno vê a própria frequência</span></li></ol>
+        <p class="voce"><b>Para você:</b> o aviso só chega depois que o professor confere a chamada, e quem só chegou atrasado aparece como atraso, não como falta. A lei pede pelo menos 75% de presença no ano.</p>
+      </article>
+
+      <article class="fluxo" data-p="prof aluno">
+        <div class="top"><h3>Material da turma</h3><div class="tags"><span class="tag t-prof">Professor</span><span class="tag t-aluno">Aluno</span></div></div>
+        <ol class="passos"><li><span class="prof">O professor envia o PDF ou a foto do impresso</span></li><li><span class="nuvem">Fica guardado por turma e matéria</span></li><li><span class="aluno">Aparece na matéria do aluno, com aviso</span></li></ol>
+        <p class="voce"><b>Para você:</b> nenhum impresso se perde na mochila.</p>
+      </article>
+
+      <article class="fluxo" data-p="aluno prof pais">
+        <div class="top"><h3>Simulado da semana</h3><div class="tags"><span class="tag t-aluno">Aluno</span><span class="tag t-prof">Professor</span><span class="tag t-pais">Família</span></div></div>
+        <ol class="passos"><li><span class="nuvem">A IA monta 5 questões com o material e as anotações</span></li><li><span class="nuvem">Sorteia a letra certa para cada aluno</span></li><li><span class="aluno">O aluno responde e vê a explicação de cada alternativa</span></li><li><span class="prof">O professor vê os assuntos com mais erros</span></li><li><span class="pais">A família vê a nota</span></li></ol>
+        <p class="voce"><b>Para você:</b> um treino por semana, sem cola de gabarito entre colegas, e o professor sabe o que reforçar.</p>
+      </article>
+
+      <article class="fluxo" data-p="aluno">
+        <div class="top"><h3>Tira-dúvidas</h3><div class="tags"><span class="tag t-aluno">Aluno</span></div></div>
+        <ol class="passos"><li><span class="aluno">O aluno pergunta</span></li><li><span class="nuvem">A IA explica passo a passo</span></li><li><span class="aluno">Até 10 perguntas por dia</span></li></ol>
+        <p class="voce"><b>Para você:</b> ajuda na hora de estudar em casa, só sobre os estudos.</p>
+      </article>
+
+      <article class="fluxo" data-p="aluno pais">
+        <div class="top"><h3>Agenda e lembretes</h3><div class="tags"><span class="tag t-aluno">Aluno</span><span class="tag t-pais">Família</span></div></div>
+        <ol class="passos"><li><span class="aluno">O aluno anota a prova ou o trabalho (também por voz)</span></li><li><span class="nuvem">Sincroniza celular e computador</span></li><li><span class="aluno">Lembrete antes do prazo</span></li><li><span class="pais">A família vê as provas e os prazos</span></li></ol>
+        <p class="voce"><b>Para você:</b> menos prazo perdido. A família vê as provas e os trabalhos, mas não as anotações nem a agenda pessoal do aluno.</p>
+      </article>
+
+      <article class="fluxo" data-p="aluno prof escola pais">
+        <div class="top"><h3>Grupo da turma e grupo das famílias</h3><div class="tags"><span class="tag t-aluno">Aluno</span><span class="tag t-prof">Professor</span><span class="tag t-pais">Família</span><span class="tag t-escola">Escola</span></div></div>
+        <ol class="passos"><li><span class="aluno">Alunos e professores conversam</span></li><li><span class="nuvem">Filtro de palavrões e nada de aviso das 22h às 6h</span></li><li><span class="aluno">Qualquer um pode denunciar uma mensagem</span></li><li><span class="escola">A escola apaga ou pausa</span></li></ol>
+        <p class="voce"><b>Para você:</b> a conversa da turma acontece num lugar moderado pela escola, sem expor telefone. O grupo das famílias é separado e só existe se a escola ligar.</p>
+      </article>
+
+      <article class="fluxo" data-p="aluno pais escola">
+        <div class="top"><h3>Disque-denúncia</h3><div class="tags"><span class="tag t-aluno">Aluno</span><span class="tag t-pais">Família</span><span class="tag t-escola">Escola</span></div></div>
+        <ol class="passos"><li><span class="aluno">O aluno ou a família relata</span></li><li><span class="nuvem">Escolhe: anônimo ou identificado</span></li><li><span class="escola">Só a coordenação lê e responde</span></li><li><span class="pais">Um protocolo para acompanhar</span></li></ol>
+        <p class="voce"><b>Para você:</b> um canal sigiloso para bullying, violência ou assédio. Em perigo agora: ligue 190.</p>
+      </article>
+
+      <article class="fluxo" data-p="escola aluno pais prof">
+        <div class="top"><h3>Acesso seguro</h3><div class="tags"><span class="tag t-escola">Escola</span><span class="tag t-aluno">Aluno</span><span class="tag t-pais">Família</span><span class="tag t-prof">Professor</span></div></div>
+        <ol class="passos"><li><span class="aluno">PIN ou digital ao abrir (se a escola pedir)</span></li><li><span class="nuvem">O acesso fica registrado</span></li><li><span class="nuvem">O app sai sozinho se ficar parado</span></li></ol>
+        <p class="voce"><b>Para você:</b> celular esquecido na mesa não expõe os dados de ninguém.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- QUEM VÊ O QUÊ -->
+  <section class="sec" aria-labelledby="t-ve">
+    <h2 id="t-ve">Quem vê o quê</h2>
+    <p>Cada pessoa entra com a própria conta, pelo convite da escola, e só enxerga o que é dela.</p>
+    <div class="ve">
+      <div style="border-color:var(--aluno)"><h3>Aluno</h3><p>Os próprios estudos, a turma dele e os avisos que recebeu. As anotações são só dele.</p></div>
+      <div style="border-color:var(--pais)"><h3>Família</h3><p>Só o próprio filho (notas, faltas, provas e prazos) e a escola. Não vê as anotações dele nem a conversa dos alunos.</p></div>
+      <div style="border-color:var(--prof)"><h3>Professor</h3><p>Só as próprias turmas e a própria matéria.</p></div>
+      <div><h3>Coordenação</h3><p>Os números da escola, os avisos, as denúncias e quem acessou o app.</p></div>
+    </div>
+    <div class="seg"><span>🔒 Login individual</span><span>🔐 PIN ou digital</span><span>🕒 Registro de acessos</span><span>💬 Grupos moderados</span><span>🛟 Disque-denúncia sigiloso</span></div>
+  </section>
+
+  <footer>
+    <span>Dúvidas? Fale com a coordenação pelos avisos da escola no app, ou abra o 📖 Manual do app.</span>
+    <a class="voltar" href="app.html">← Voltar para o app</a>
+  </footer>
+</div>
+
+<script>
+(function(){
+  // marca do colégio: a mesma que o app guardou no aparelho (o app grava as chaves com o prefixo "esc:")
+  var C=window.BD_ESC||{}, mk=null;
+  try{ mk=JSON.parse(localStorage.getItem('esc:esc_marca')||'null'); }catch(e){}
+  var nome=(mk&&mk.nome)||C.subtitulo||'Escola', cor=(mk&&/^#[0-9a-f]{6}$/i.test(mk.cor||'')&&mk.cor)||C.cor;
+  document.getElementById('sub').textContent=nome;
+  document.title='Como funciona · '+(mk&&mk.nome?mk.nome:(C.nome||'BoraDiploma Escola'));
+  if(mk&&mk.logo){ document.getElementById('logo').src=mk.logo; }
+  if(cor&&/^#[0-9a-f]{6}$/i.test(cor)){
+    function mistura(h,c,p){ var a=parseInt(h.slice(1),16), b=parseInt(c.slice(1),16); return '#'+[16,8,0].map(function(s){ var x=(a>>s)&255, y=(b>>s)&255; return ('0'+Math.round(x+(y-x)*p).toString(16)).slice(-2); }).join(''); }
+    var st=document.createElement('style'), cl=mistura(cor,'#ffffff',.55), sv=mistura(cor,'#ffffff',.88), se=mistura(cor,'#111111',.78);
+    st.textContent=':root{--escola:'+cor+';--escola-s:'+sv+'}@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--escola:'+cl+';--escola-s:'+se+'}}:root[data-theme="dark"]{--escola:'+cl+';--escola-s:'+se+'}';
+    document.head.appendChild(st);
+  }
+  // voltar: se veio do app, volta para onde estava
+  [].forEach.call(document.querySelectorAll('.voltar'),function(a){ a.addEventListener('click',function(e){ if(document.referrer&&document.referrer.indexOf(location.origin)===0&&history.length>1){ e.preventDefault(); history.back(); } }); });
+  // filtro em sanfona
+  var btns=[].slice.call(document.querySelectorAll('.filtros button')), fluxos=[].slice.call(document.querySelectorAll('.fluxo'));
+  var nomes={escola:'da Escola',prof:'do Professor',aluno:'do Aluno',pais:'da Família'};
+  btns.forEach(function(b){ b.addEventListener('click',function(){
+    var f=b.getAttribute('data-f'), n=0;
+    btns.forEach(function(x){ x.setAttribute('aria-pressed',x===b?'true':'false'); });
+    fluxos.forEach(function(el){ var ok=f==='todos'||el.getAttribute('data-p').split(' ').indexOf(f)>=0; el.classList.toggle('fechado',!ok); el.setAttribute('aria-hidden',ok?'false':'true'); if(ok) n++; });
+    document.getElementById('mostrando').innerHTML=f==='todos'?'Mostrando <b>todos os caminhos</b>.':'Mostrando <b>'+n+' caminhos '+nomes[f]+'</b>. Toque em Todos para ver os outros.';
+  }); });
+  // abre já no público de quem chegou (app.html manda #aluno ou #pais)
+  var h=(location.hash||'').slice(1), alvo=document.querySelector('.filtros button[data-f="'+h+'"]'); if(alvo) alvo.click();
+})();
+</script>
+</body>
+</html>
