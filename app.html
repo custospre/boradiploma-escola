@@ -2835,6 +2835,21 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
     if(window.bdEscola) window.bdEscola.abrir(document.getElementById('escBox'),modo==='rel'?'rel':'');
   }
   window.bdAbrirEscola=openEscola; window.bdToast=toast; window.bdRenderTree=function(){ if(viewIndex&&!viewIndex.hidden) renderTree(); };
+  // chegou conteúdo de outro aparelho: redesenha a tela em que a pessoa está, sem recarregar o app (true = redesenhou)
+  window.bdRefreshTela=function(){
+    try{
+      var y=window.pageYOffset, vis=function(id){ var v=document.getElementById(id); return v&&!v.hidden; };
+      if(vis('view-index')){ renderTree(); }
+      else if(vis('view-subject')&&curSubjectId){ openSubject(curSubjectId); }
+      else if(vis('view-notes')){ showSubjects(); }
+      else if(vis('view-agenda')){ openAgenda(agQual); }
+      // aula/material aberto (sem digitar): reabre com a versão nova. O que estava na tela já foi salvo antes de buscar a nuvem;
+      // por isso a reabertura não pode salvar de novo (gravaria a versão antiga por cima)
+      else if(vis('view-note')&&curNoteId&&curSubjectId){ var sn=curSubjectId, an=curNoteId; clearTimeout(saveTimer); saveTimer=null; curNoteId=null; openNote(sn,an); }
+      else return false;
+      window.scrollTo(0,y); return true;
+    }catch(e){ return false; }
+  };
   function openBackup(){
     flushAll(); active=null; curFolder=null; curNoteId=null; curSubjectId=null;
     hideViews(); document.getElementById('view-backup').hidden=false; hideControls();
@@ -4583,6 +4598,8 @@ if ('serviceWorker' in navigator) {
   // mostra o conteudo novo (recarrega a tela), mas nunca no meio de uma digitacao
   function refreshView(force){
     if(!force && editing()){ cloudStatus('atualizado de outro aparelho'); setTimeout(function(){ cloudStatus(''); }, 4000); return; }
+    // sem recarregar o app (antes ele abria, fechava e abria de novo): redesenha a tela atual; se ela não dá para redesenhar (ex.: uma aula aberta), o conteúdo novo aparece na próxima vez que abrir a página
+    if(!force){ if(typeof window.bdRefreshTela === 'function') window.bdRefreshTela(); cloudStatus('atualizado de outro aparelho'); setTimeout(function(){ cloudStatus(''); }, 4000); return; }
     var t = 0; try{ t = Number(sessionStorage.getItem('gd_reload_t') || '0'); sessionStorage.setItem('gd_reload_t', String(Date.now())); }catch(e){}
     if(!force && Date.now() - t < 60000){ cloudStatus('atualizado de outro aparelho'); setTimeout(function(){ cloudStatus(''); }, 4000); return; }
     location.reload();
@@ -5539,7 +5556,7 @@ if ('serviceWorker' in navigator) {
     h+=secao('profs','🧑‍🏫 Professores',pr.length+' professor'+(pr.length===1?'':'es'),pr.map(function(p){ return linha(p); }).join('')+'<button type="button" class="escbtn escadd" data-ea="novo" data-papel="professor">＋ Professor</button>');
     h+=secao('coord','🏫 Coordenação',co.length+' pessoa'+(co.length===1?'':'s'),co.map(function(p){ return linha(p); }).join('')+'<button type="button" class="escbtn escadd" data-ea="novo" data-papel="coordenacao">＋ Coordenação</button>');
     h+=comoFuncionaHTML('coordenacao')+segAparelhoHTML();
-    if(m.escola.modelo) h+='<div class="esccard escaviso"><h3>🧪 Esta é a escola de exemplo</h3><p>Os nomes são inventados. Para ver o app como um aluno ou um responsável vê, toque em 📨 ao lado da pessoa, copie o convite e abra com <b>outra conta</b> (outro celular ou janela anônima).</p><button type="button" class="escbtn2" data-ea="apagar">🗑 Apagar a escola de exemplo</button></div>';
+    if(m.escola.modelo) h+='<div class="esccard escaviso"><h3>🧪 Esta é a escola de exemplo</h3><p>Os nomes são inventados. Para ver o app como um aluno ou um responsável vê, toque em 📨 ao lado da pessoa, copie o convite e abra com <b>outra conta</b> (outro celular ou janela anônima).</p><div class="escacts"><button type="button" class="escbtn" data-ea="completar">🧪 Completar o exemplo (dados em todas as funções)</button><button type="button" class="escbtn2" data-ea="apagar">🗑 Apagar a escola de exemplo</button></div><p class="escdim" style="font-size:.8rem;margin:6px 0 0">Completar cria notas, chamadas, simulados, avisos, Disque-denúncia, acessos, horários e liberações de exemplo, para todos os relatórios aparecerem cheios. Pode tocar de novo: refaz tudo.</p></div>';
     return h;
   }
   function embreve(itens){ return '<div class="escbreve">'+itens.map(function(a){ return '<div class="esccard"><span class="escpill">em breve</span><h3>'+a[0]+'</h3><p>'+a[1]+'</p></div>'; }).join('')+'</div>'; }
@@ -6865,6 +6882,8 @@ if ('serviceWorker' in navigator) {
     if(a==='outro'){ var cd=prompt('Digite o código de convite:'); if(cd) entrar(cd); return; }
     if(a==='modelo'){ b.disabled=true; b.textContent='Criando…'; var nm=''; try{ nm=(window.bdUsuario().user_metadata||{}).full_name||''; }catch(_){}
       rpc('escola_criar_modelo',{p_nome:nm||null}).then(function(){ aviso('Escola de exemplo criada'); return carregar(); },function(er){ b.disabled=false; b.textContent='Criar escola de exemplo'; aviso(er.message); }); return; }
+    if(a==='completar'){ if(!confirm('Completar a escola de exemplo com notas, chamadas, simulados, avisos, Disque-denúncia, acessos e horários?\n\nSe já tinha completado antes, esses dados de exemplo são refeitos.')) return; b.disabled=true; b.textContent='Completando…';
+      rpc('escola_completar_modelo',{p_escola:m.escola.id}).then(function(r){ aviso('Exemplo completo: '+r.notas+' notas, '+r.chamadas+' chamadas e '+r.simulados+' simulados'); relDados={}; relat={}; usoCfg={}; chamPend=null; acessos={}; avisosEsc=[]; relatosEsc=[]; return carregar(); },function(er){ b.disabled=false; b.textContent='🧪 Completar o exemplo (dados em todas as funções)'; aviso(er.message); }); return; }
     if(a==='apagar'){ if(!confirm('Apagar a escola de exemplo inteira (turmas, alunos, responsáveis e professores)?')) return;
       rpc('escola_apagar_modelo',{p_escola:m.escola.id}).then(function(){ aviso('Escola de exemplo apagada'); sel=0; dados=[]; return carregar(); },function(er){ aviso(er.message); }); return; }
     if(a==='turma'){ formTurma(id?turma(id):null); return; }
