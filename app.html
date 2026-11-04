@@ -4841,7 +4841,7 @@ if ('serviceWorker' in navigator) {
   }
   // --- aceite no primeiro acesso: 3 quadrinhos (Termos/Direitos Autorais, IA, idade) antes de usar o app ---
   // grava na tabela "aceites" do Supabase (prova do aceite) e neste aparelho; nova VERSAO dos Termos = pede de novo
-  var BD_ACEITE_APP = 'escola', BD_ACEITE_VER = 'termos-2026-11-04';
+  var BD_ACEITE_APP = 'escola', BD_ACEITE_VER = 'termos-2026-11-04-v4';
   function bdAceiteChave(){ return 'bd_aceite:' + (currentUser ? currentUser.id : '') + ':' + BD_ACEITE_VER; }
   function bdAceiteFeito(){ try{ return !!localStorage.getItem(bdAceiteChave()); }catch(e){ return false; } }
   function bdAceiteGrava(itens){
