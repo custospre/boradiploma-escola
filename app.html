@@ -6332,6 +6332,7 @@ if ('serviceWorker' in navigator) {
     function de(p){ return mem.filter(function(x){ return x.papel===p; }); }
     var al=de('aluno'), rs=de('responsavel'), pr=de('professor'), co=de('coordenacao'), gp=!!m.escola.grupo_pais;
     var h='<div class="escnums"><div><b>'+tur.length+'</b>turmas</div><div><b>'+al.length+'</b>alunos</div><div><b>'+rs.length+'</b>responsáveis</div><div><b>'+pr.length+'</b>professores</div></div>';
+    h+='<p class="escdim" style="margin:-4px 2px 10px;font-size:.85rem">💰 <b>Alunos para cobrança: '+al.filter(function(a){ return !a.bloqueado; }).length+'</b> (cadastrados e não bloqueados; vale o número do último dia útil do mês).</p>';
     h+='<div class="esccard escgp"><label class="escsw" title="Liga ou desliga"><input type="checkbox" data-ea="gp"'+(gp?' checked':'')+'><span></span></label>'
       +'<div><h3>👨‍👩‍👧 Grupo dos pais da turma: '+(gp?'<b class="escok">liberado</b>':'<b class="escoff">desligado</b>')+'</h3>'
       +'<p>Quando liberado, os responsáveis de cada turma veem uns aos outros e têm um grupo só deles, separado do grupo dos alunos. Com ou sem o grupo, cada responsável vê só o próprio filho e a escola.</p></div></div>';

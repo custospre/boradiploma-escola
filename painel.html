@@ -290,7 +290,8 @@
       +'<div><b>'+conta(function(x){ return x.papel==='responsavel'&&x.entrou&&!x.bloqueado; })+'</b>responsáveis ativos</div>'
       +'<div><b>'+conta(function(x){ return x.papel==='professor'&&x.entrou&&!x.bloqueado; })+'</b>professores ativos</div>'
       +'<div><b>'+conta(function(x){ return !x.entrou&&!x.bloqueado; })+'</b>convites aguardando</div>'
-      +'<div><b>'+conta(function(x){ return x.bloqueado; })+'</b>bloqueados</div>';
+      +'<div><b>'+conta(function(x){ return x.bloqueado; })+'</b>bloqueados</div>'
+      +'<div class="destaque"><b>'+conta(function(x){ return x.papel==='aluno'&&!x.bloqueado; })+'</b>alunos para cobrança</div>';
     $('gp').checked=!!m.escola.grupo_pais;
     // formulário
     var ft=$('fTurma').value;
