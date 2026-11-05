@@ -6977,10 +6977,19 @@ if ('serviceWorker' in navigator) {
   }
 
   // ---------- convite ----------
+  function resumoConvite(x,al,base){
+    var a=al?primeiro(al.nome):'o aluno', r={
+      aluno:'No app você organiza seus estudos, tira dúvidas com a IA e faz simulados. A escola e seus responsáveis veem suas notas, frequência, simulados e tempo de estudo no app; suas anotações e suas conversas com a IA são só suas.',
+      responsavel:'No app você acompanha as notas, a frequência, os simulados, as provas e o tempo de estudo de '+a+', e recebe os avisos da escola. '+a+' usa a IA para tirar dúvidas e fazer simulados, com regras definidas pela escola. Na primeira entrada, você confirma essa autorização (Termo do responsável).',
+      professor:'No app você faz a chamada, lança notas, envia material para as turmas e acompanha os simulados dos alunos na sua matéria.',
+      coordenacao:'No app a coordenação cuida das turmas, convites, avisos, relatórios e regras da IA. Na primeira entrada, um membro da coordenação aceita o Termo da escola.'}[x.papel]||'';
+    return (r?'\n\n'+r:'')+'\n\nAntes de entrar, leia:\n• Política de Privacidade: '+base+'privacidade.html\n• Termos de Uso: '+base+'termos.html';
+  }
   function textoConvite(x,m){
     var link=location.origin+location.pathname+'?convite='+x.codigo, al=x.papel==='responsavel'?pessoa(x.aluno_id):null;
     return 'Olá, '+primeiro(x.nome)+'! Este é o seu convite para o app do '+m.escola.nome
-      +(al?', para acompanhar '+al.nome:'')+' ('+PAPEL[x.papel]+').\n\n1) Abra este link: '+link+'\n2) Entre com a sua conta Google\n3) Se o app pedir, digite o código: '+x.codigo;
+      +(al?', para acompanhar '+al.nome:'')+' ('+PAPEL[x.papel]+').\n\n1) Abra este link: '+link+'\n2) Entre com a sua conta Google\n3) Se o app pedir, digite o código: '+x.codigo
+      +resumoConvite(x,al,location.origin+location.pathname.replace(/[^\/]*$/,''));
   }
   function convite(x){
     var m=atual(), txt=textoConvite(x,m), c=(x.contato||'').trim(), fone=c.replace(/\D/g,''), mail=/@/.test(c);
@@ -6988,7 +6997,7 @@ if ('serviceWorker' in navigator) {
     var wa='https://wa.me/'+(!mail&&fone.length>=12?fone:'')+'?text='+encodeURIComponent(txt);
     var d=janela('📨 Convite de '+E(x.nome),
       (x.entrou?'<p class="escok">✅ '+E(primeiro(x.nome))+' já entrou com este convite.</p>':'')
-      +'<div class="esccodigo">'+E(x.codigo)+'</div><textarea id="efTxt" readonly rows="7">'+E(txt)+'</textarea>',
+      +'<div class="esccodigo">'+E(x.codigo)+'</div><textarea id="efTxt" readonly rows="12">'+E(txt)+'</textarea>',
       '<button type="button" class="escbtn" data-cp>📋 Copiar mensagem</button><button type="button" class="escbtn" data-lk>🔗 Copiar só o link</button><a class="escbtn" href="'+E(wa)+'" target="_blank" rel="noopener">WhatsApp</a>'
       +(mail?'<a class="escbtn" href="mailto:'+E(c)+'?subject='+encodeURIComponent('Convite: '+m.escola.nome)+'&body='+encodeURIComponent(txt)+'">✉️ E-mail</a>':'')
       +'<button type="button" class="escbtn2" data-novo>🔄 Novo código</button><button type="button" class="escbtn2" data-x>Fechar</button>');

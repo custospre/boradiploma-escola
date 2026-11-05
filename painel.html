@@ -521,9 +521,18 @@
       var a=x.aluno_id?pessoa(x.aluno_id):null, t=turma(x.turma_id); return [x.nome,PAPEL[x.papel],t?t.nome:'',a?a.nome:'',x.contato||'',x.codigo||'',base+(x.codigo||'')]; }))); };
 
   // ---------- convite ----------
+  function resumoConvite(x,al,base){
+    var a=al?primeiro(al.nome):'o aluno', r={
+      aluno:'No app você organiza seus estudos, tira dúvidas com a IA e faz simulados. A escola e seus responsáveis veem suas notas, frequência, simulados e tempo de estudo no app; suas anotações e suas conversas com a IA são só suas.',
+      responsavel:'No app você acompanha as notas, a frequência, os simulados, as provas e o tempo de estudo de '+a+', e recebe os avisos da escola. '+a+' usa a IA para tirar dúvidas e fazer simulados, com regras definidas pela escola. Na primeira entrada, você confirma essa autorização (Termo do responsável).',
+      professor:'No app você faz a chamada, lança notas, envia material para as turmas e acompanha os simulados dos alunos na sua matéria.',
+      coordenacao:'No app a coordenação cuida das turmas, convites, avisos, relatórios e regras da IA. Na primeira entrada, um membro da coordenação aceita o Termo da escola.'}[x.papel]||'';
+    return (r?'\n\n'+r:'')+'\n\nAntes de entrar, leia:\n• Política de Privacidade: '+base+'privacidade.html\n• Termos de Uso: '+base+'termos.html';
+  }
   function convite(x){
     var m=atual(), link=location.origin+location.pathname.replace(/painel\.html$/,'')+'app.html?convite='+x.codigo, al=x.papel==='responsavel'?pessoa(x.aluno_id):null;
-    var txt='Olá, '+primeiro(x.nome)+'! Este é o seu convite para o app do '+m.escola.nome+(al?', para acompanhar '+al.nome:'')+' ('+PAPEL[x.papel]+').\n\n1) Abra este link: '+link+'\n2) Entre com a sua conta Google\n3) Se o app pedir, digite o código: '+x.codigo;
+    var txt='Olá, '+primeiro(x.nome)+'! Este é o seu convite para o app do '+m.escola.nome+(al?', para acompanhar '+al.nome:'')+' ('+PAPEL[x.papel]+').\n\n1) Abra este link: '+link+'\n2) Entre com a sua conta Google\n3) Se o app pedir, digite o código: '+x.codigo
+      +resumoConvite(x,al,location.origin+location.pathname.replace(/[^\/]*$/,''));
     var c=(x.contato||'').trim(), fone=c.replace(/\D/g,''), mail=/@/.test(c); if(fone.length>=10&&fone.length<=11) fone='55'+fone;
     var wa='https://wa.me/'+(!mail&&fone.length>=12?fone:'')+'?text='+encodeURIComponent(txt);
     $('mbox').innerHTML='<h2>📨 Convite de '+E(x.nome)+'</h2><div class="big">'+E(x.codigo)+'</div><textarea readonly id="mtxt">'+E(txt)+'</textarea>'
