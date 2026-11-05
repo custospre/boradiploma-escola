@@ -6124,6 +6124,7 @@ if ('serviceWorker' in navigator) {
 .escpz.perto .escpzq{color:#c62828;font-weight:700}
 .escpzold summary{cursor:pointer;margin-top:8px}
 /* 🤖 regras da IA e opções da IA */
+.escterm h3{margin:0 0 4px}.escterml{border:1px solid rgba(127,127,127,.25);border-radius:10px;padding:10px 12px;margin-top:8px}
 .iareg{margin:12px 0 0}.iareg h4{margin:0 0 4px;font-family:var(--font-head);font-size:.92rem}
 .iaop{display:flex;gap:8px;align-items:flex-start;padding:4px 2px;cursor:pointer;line-height:1.35}.iaop input{margin-top:3px;flex:none}
 .iaex{display:flex;gap:6px;align-items:flex-start;padding:6px 0;border-bottom:1px solid rgba(127,127,127,.2)}.iaex span{flex:1;min-width:0;overflow-wrap:anywhere}
@@ -6264,9 +6265,10 @@ if ('serviceWorker' in navigator) {
     if(!box) return Promise.resolve();
     if(!logado()){ box.innerHTML='<div class="escvazio">Entre na sua conta para ver a sua escola.</div>'; return Promise.resolve(); }
     if(!dados.length) box.innerHTML='<div class="escvazio">Carregando…</div>';
-    return Promise.all([rpc('escola_painel'), rpc('chat_grupos').catch(function(){ return []; }), rpc('avisos_meus').catch(function(){ return []; }), rpc('materiais_lista').catch(function(){ return null; }), rpc('simulados_meus').catch(function(){ return []; }), rpc('relatos_meus',{p_protocolos:protos()}).catch(function(){ return []; }), rpc('escola_marca').catch(function(){ return null; })]).then(function(r){
+    return Promise.all([rpc('escola_painel'), rpc('chat_grupos').catch(function(){ return []; }), rpc('avisos_meus').catch(function(){ return []; }), rpc('materiais_lista').catch(function(){ return null; }), rpc('simulados_meus').catch(function(){ return []; }), rpc('relatos_meus',{p_protocolos:protos()}).catch(function(){ return []; }), rpc('escola_marca').catch(function(){ return null; }), rpc('termos_meus',{p_ver:TERMO_VER}).catch(function(){ return null; })]).then(function(r){
       dados=Array.isArray(r[0])?r[0]:[]; grupos=Array.isArray(r[1])?r[1]:[]; avisos=Array.isArray(r[2])?r[2]:[]; if(Array.isArray(r[3])) guardaMats(r[3]); sims=Array.isArray(r[4])?r[4]:[]; relatos=Array.isArray(r[5])?r[5]:[]; if(sel>=dados.length) sel=0;
       if(Array.isArray(r[6])){ marcas=r[6]; aplicarMarca(); }
+      termos=Array.isArray(r[7])?r[7]:null;
       var m=atual(); if(m&&m.papel==='aluno') rpc('simulado_saldo').then(function(n){ if(typeof n==='number'){ simSaldo=n; if(!ocupado()) desenhar(); } },function(){}); estudoFilho={}; denuncias=[]; avisosEsc=[]; filhoRes={}; relatosEsc=[]; acessos={}; relat={}; simProf=null; relDados={}; notasMinhas=null; notasFilho={}; chamPend=null; freqMinha=null; freqFilho={}; usoCfg={}; usoCarrega(false);
       if(!m||m.papel!=='coordenacao') return;
       if(m.escola.modelo&&!exemploOk[m.escola.id]){ // escola de exemplo: põe umas conversas para mostrar (só se o grupo estiver vazio)
@@ -6299,6 +6301,7 @@ if ('serviceWorker' in navigator) {
     h+='<div class="eschead">'+(lg?'<img class="esclogo eschlogo" src="'+E(lg)+'" alt="">':'')+'<div class="escnome">'+E(m.escola.nome)+(m.escola.modelo?' <span class="escex">exemplo</span>':'')+'</div>'
       +'<div class="escsub">'+ICO[m.papel]+' Você está como <b>'+PAPEL[m.papel]+'</b>'+(m.papel!=='coordenacao'?' · '+E(m.nome):'')+'</div></div>';
     if(m.bloqueado) h+='<div class="esccard escden"><h3>⛔ Seu acesso a esta escola está bloqueado</h3><p>A coordenação bloqueou o seu acesso aos grupos e às informações da escola. Fale com a escola para saber mais.</p></div>';
+    else if(precisaTermo(m)) h+=termoHTML(m);
     else if(modoRel) h+=telaRelatorios(m);
     else if(m.papel==='coordenacao') h+=telaCoord(m);
     else if(m.papel==='aluno') h+=telaAluno(m);
@@ -7078,6 +7081,46 @@ if ('serviceWorker' in navigator) {
     carregar().then(function(){ var r=relatos.filter(function(x){ return x.protocolo===p; })[0]; if(r) abrirRelato(r.id,false); else aviso('Protocolo não encontrado nesta escola.'); });
   }
 
+  // ---------- 📜 Termo da escola (coordenação), do responsável e do aluno: 1 vez, na 1ª vez que abre a Minha escola ----------
+  // a escola responde por ela e pelos professores (professor não aceita nada); se o SQL não rodou, não bloqueia
+  var TERMO_VER='termo-escola-2026-11-05-v1', termos=null;
+  function termoDe(m){ return (termos||[]).filter(function(x){ return x.membro_id===m.membro_id; })[0]||null; }
+  function precisaTermo(m){ if(!termos||!m||m.papel==='professor') return false; var x=termoDe(m); return !!x&&!x.ok; }
+  function termoItens(m){
+    if(m.papel==='coordenacao') return [
+      'A escola é responsável pelo uso do BoraDiploma Escola pela sua comunidade escolar (coordenação, professores, alunos e famílias) e por quem ela convida.',
+      'A escola é responsável pelo material que envia às turmas (próprio, dos professores ou trechos de terceiros para fins didáticos), compartilhado só com os alunos da turma para estudo. Autoriza a IA a usar esse material para criar simulados e explicar dúvidas, sem reproduzir nem divulgar o material fora da turma.',
+      'A escola é a responsável pelos dados dos alunos e das famílias que cadastra e já tem a autorização dos pais ou responsáveis para cadastrar alunos menores de idade.',
+      'A escola define as regras da IA para os seus alunos e se compromete a tratar com sigilo os Alertas da IA e os relatos do Disque-denúncia.'];
+    var fn=primeiro((m.filho||{}).nome)||'o aluno';
+    if(m.papel==='responsavel') return [
+      'Sou responsável legal por '+fn+' e autorizo o uso do BoraDiploma Escola e da IA (tira-dúvidas e simulados) por '+fn+', seguindo as regras definidas pela escola.',
+      'Estou ciente de que vejo no Boletim as notas, a frequência, os simulados, os prazos e o tempo de estudo de '+fn+' no app, e que as anotações pessoais de '+fn+' não aparecem para mim.',
+      'Estou ciente de que, se a escola ligar essa opção, quando '+fn+' contar à IA algo sério sobre si, a coordenação recebe um aviso para poder ajudar, sem ver a conversa.'];
+    return [
+      'Vou usar o BoraDiploma Escola e a IA para estudar, seguindo as regras da minha escola.',
+      'Sei que a escola e os meus responsáveis veem as minhas notas, a frequência, os simulados e o tempo de estudo no app. As minhas anotações são só minhas.',
+      'Sei que, se a escola ligar essa opção, quando eu contar à IA algo sério sobre mim, a coordenação recebe um aviso para poder me ajudar, sem ver a conversa.'];
+  }
+  function termoHTML(m){
+    var it=termoItens(m), tit=m.papel==='coordenacao'?'📜 Termo da escola':(m.papel==='responsavel'?'📜 Termo do responsável':'📜 Termo do aluno');
+    var sub=m.papel==='coordenacao'?'Antes de criar turmas e convites, a escola confirma as regras abaixo. Basta uma pessoa da coordenação aceitar: vale para toda a escola, que responde também pelos seus professores.'
+      :(m.papel==='responsavel'?'Para acompanhar '+E(primeiro((m.filho||{}).nome)||'o aluno')+' pela escola, confirme:':'Para usar a sua escola no app, confirme:');
+    return '<div class="esccard escterm"><h3>'+tit+'</h3><p class="escdim">'+sub+'</p>'
+      +it.map(function(x,i){ return '<label class="iaop escterml"><input type="checkbox" data-tm="'+i+'"><span>'+E(x)+'</span></label>'; }).join('')
+      +'<button type="button" class="escbtn" data-ea="termook" style="margin-top:10px;width:100%">✅ Aceito</button>'
+      +'<p class="escdim" style="font-size:.8rem;margin:6px 0 0">Fica registrado quem aceitou e quando. Sem aceitar, a escola não aparece para você.</p></div>';
+  }
+  function termoAceitar(b){
+    var m=atual(), cks=[].slice.call(box.querySelectorAll('[data-tm]')), it=termoItens(m);
+    if(!cks.length||cks.some(function(c){ return !c.checked; })){ aviso('Marque todos os quadrinhos para continuar.'); return; }
+    b.disabled=true;
+    rpc('termo_aceitar',{p_membro:m.membro_id,p_ver:TERMO_VER,p_itens:it}).then(function(){
+      (termos||[]).forEach(function(x){ if(x.membro_id===m.membro_id||(m.papel==='coordenacao'&&x.papel==='coordenacao'&&dados.some(function(d){ return d.membro_id===x.membro_id&&d.escola.id===m.escola.id; }))) x.ok=true; });
+      aviso('✅ Termo aceito'); desenhar(); window.scrollTo({top:0});
+    },function(e){ b.disabled=false; aviso(e.message); });
+  }
+
   // ---------- 🤖 Regras da IA (a coordenação escolhe como a IA responde; a 1ª opção de cada grupo é o padrão ⭐) ----------
   var IAG=[
     ['ex','✏️ Exercícios e tarefas',[['caminho','Mostrar o caminho e a resposta final, e terminar com um exercício parecido para o aluno treinar'],['dicas','Só dicas, um passo de cada vez (a resposta só é confirmada quando o aluno acerta)'],['quase','Mostrar o caminho até o último passo; o aluno faz a conta final'],['direto','Resposta direta, com explicação curta']]],
@@ -7813,6 +7856,7 @@ if ('serviceWorker' in navigator) {
     if(a==='relst'){ relEnviar(b.getAttribute('data-s')); return; }
     if(a==='tutor'){ abrirTutor(); return; }
     if(a==='tuenviar'){ tutorPerguntar(); return; }
+    if(a==='termook'){ termoAceitar(b); return; }
     if(a==='tuouvir'){ var tuIt=tutorHist()[+b.getAttribute('data-i')]; if(tuIt) window.bdIaFalar(tuIt.texto,b); return; }
     if(a==='iareg'){ var iaR1=iaAtual(); iaR1[b.getAttribute('data-g')]=b.getAttribute('data-v'); iaSalvar(iaR1); return; }
     if(a==='iaexadd'){ var iaTx=((box.querySelector('#iaExTx')||{}).value||'').trim(); if(!iaTx){ aviso('Escreva a regra'); return; } var iaR2=iaAtual(); if(iaR2.extras.length>=10){ aviso('Já são 10 regras: exclua uma para incluir outra.'); return; } iaR2.extras.push(iaTx.slice(0,300)); iaSalvar(iaR2,'Regra incluída'); return; }

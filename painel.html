@@ -242,8 +242,14 @@
   function pessoa(id){ return (atual().membros||[]).filter(function(x){ return x.id===id; })[0]; }
   function carregar(){
     $('login-card').hidden=true; $('sair').hidden=false;
-    return rpc('escola_painel').then(function(d){
+    return Promise.all([rpc('escola_painel'), rpc('termos_meus',{p_ver:'termo-escola-2026-11-05-v1'}).catch(function(){ return null; })]).then(function(rr){
+      var d=rr[0], tm=Array.isArray(rr[1])?rr[1]:null;
       escolas=(d||[]).filter(function(m){ return m.papel==='coordenacao'&&!m.bloqueado; });
+      // a escola precisa aceitar o Termo da escola (no app, em Minha escola) antes de usar o painel
+      if(tm) escolas=escolas.filter(function(m){ var x=tm.filter(function(y){ return y.membro_id===m.membro_id; })[0]; return !x||x.ok; });
+      if(!escolas.length&&tm&&(d||[]).some(function(m){ return m.papel==='coordenacao'&&!m.bloqueado; })){
+        $('sem-escola').innerHTML='<h2>📜 Falta o Termo da escola</h2><p class="sub">Antes de usar o painel, a coordenação aceita o Termo da escola no app: abra <b>🏫 Minha escola</b>, marque os quadrinhos e toque em <b>✅ Aceito</b>. Depois, volte aqui e atualize a página.</p>';
+        $('sem-escola').hidden=false; $('painel').hidden=true; return; }
       if(!escolas.length){ $('sem-escola').hidden=false; $('painel').hidden=true; return; }
       $('sem-escola').hidden=true; $('painel').hidden=false;
       if(sel>=escolas.length) sel=0;
