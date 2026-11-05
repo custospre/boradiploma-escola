@@ -5176,7 +5176,7 @@ if ('serviceWorker' in navigator) {
   }
   // --- aceite no primeiro acesso: 3 quadrinhos (Termos/Direitos Autorais, IA, idade) antes de usar o app ---
   // grava na tabela "aceites" do Supabase (prova do aceite) e neste aparelho; nova VERSAO dos Termos = pede de novo
-  var BD_ACEITE_APP = 'escola', BD_ACEITE_VER = 'termos-2026-11-05-v6';   // v5: 4º quadrinho (tempo de estudo, alerta da IA, regras da escola)
+  var BD_ACEITE_APP = 'escola', BD_ACEITE_VER = 'termos-2026-11-05-v7';   // v5: 4º quadrinho (tempo de estudo, alerta da IA, regras da escola)
   function bdAceiteChave(){ return 'bd_aceite:' + (currentUser ? currentUser.id : '') + ':' + BD_ACEITE_VER; }
   function bdAceiteFeito(){ try{ return !!localStorage.getItem(bdAceiteChave()); }catch(e){ return false; } }
   function bdAceiteGrava(itens){
@@ -7647,7 +7647,7 @@ if ('serviceWorker' in navigator) {
       +'<p style="margin-top:0">Todo dia '+pn+' ganha perguntas à IA e, toda semana, simulados. Se precisar de mais (época de prova, por exemplo), você pode comprar um pacote. Os extras só são usados <b>depois que acaba o saldo normal</b>.</p>'
       +(c.entrou?'<p><b>Saldo extra agora:</b> '+(tem?(+ex.perguntas||0)+' perguntas e '+(+ex.simulados||0)+' simulado'+((+ex.simulados||0)===1?'':'s')+(ex.vence?' · o primeiro vence em '+dmY(ex.vence):''):'nenhum')+'</p>':'<p class="escdim">Quando '+pn+' entrar no app, dá para comprar.</p>');
     if(c.entrou) h+=CRED_PACOTES.map(function(k){ return '<div class="escpz"><span class="escpzt"><b>+'+k.p+' perguntas e +'+k.s+' simulados</b><small class="escdim"> · vale '+k.dias+' dias</small></span><button type="button" class="escbtn2" data-ea="credcomprar" data-p="'+k.id+'">Comprar '+k.preco+'</button></div>'; }).join('')
-      +'<p class="escdim" style="font-size:.8rem;margin:6px 0 0">Créditos não usados até o fim da validade expiram e não são devolvidos. A escola pode desligar esta opção.</p>';
+      +'<p class="escdim" style="font-size:.8rem;margin:6px 0 0">Desistência: devolução integral em até 7 dias da compra, se nenhum crédito do pacote tiver sido usado. Créditos não usados até o fim da validade expiram e não são devolvidos. A escola pode desligar esta opção.</p>';
     return h+'</div>';
   }
   function credComprar(id){
