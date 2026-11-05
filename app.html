@@ -5176,7 +5176,7 @@ if ('serviceWorker' in navigator) {
   }
   // --- aceite no primeiro acesso: 3 quadrinhos (Termos/Direitos Autorais, IA, idade) antes de usar o app ---
   // grava na tabela "aceites" do Supabase (prova do aceite) e neste aparelho; nova VERSAO dos Termos = pede de novo
-  var BD_ACEITE_APP = 'escola', BD_ACEITE_VER = 'termos-2026-11-04-v4';
+  var BD_ACEITE_APP = 'escola', BD_ACEITE_VER = 'termos-2026-11-05-v5';   // v5: 4º quadrinho (tempo de estudo, alerta da IA, regras da escola)
   function bdAceiteChave(){ return 'bd_aceite:' + (currentUser ? currentUser.id : '') + ':' + BD_ACEITE_VER; }
   function bdAceiteFeito(){ try{ return !!localStorage.getItem(bdAceiteChave()); }catch(e){ return false; } }
   function bdAceiteGrava(itens){
@@ -5212,7 +5212,8 @@ if ('serviceWorker' in navigator) {
       { id: 'termos', txt: 'Li e concordo com os <a href="termos.html" data-doc="Termos de Uso">Termos de Uso</a> e com a <a href="direitos-autorais.html" data-doc="Política de Direitos Autorais">Política de Direitos Autorais</a>, ciente de que o app é para meu estudo privado e que é proibida a distribuição de materiais de terceiros.' },
       { id: 'ia', txt: 'Entendo que as ferramentas de Inteligência Artificial processam trechos de dados de forma isolada e complementar, podendo envolver servidores externos, e que os resultados podem conter falhas.' },
       { id: 'idade', txt: ESC ? 'Declaro que sou maior de 18 anos OU que possuo autorização e assistência de meus pais/responsáveis, conforme validação já realizada com a minha escola.'
-                              : 'Declaro que sou maior de 18 anos OU que possuo autorização e assistência de meus pais/responsáveis.' }
+                              : 'Declaro que sou maior de 18 anos OU que possuo autorização e assistência de meus pais/responsáveis.' },
+      { id: 'escola', txt: 'Estou ciente, e os responsáveis pelo aluno também, de que: a IA segue as regras escolhidas pela escola; os responsáveis veem no Boletim o <b>tempo de estudo</b> do aluno no app; e, se a escola ligar essa opção, quando o aluno contar à IA algo sério sobre si mesmo, a <b>coordenação recebe um aviso</b> para poder ajudar (sem ver a conversa).' }
     ];
     var f = document.createElement('div'); f.id = 'bd-aceite';
     f.setAttribute('role', 'dialog'); f.setAttribute('aria-modal', 'true'); f.setAttribute('aria-label', 'Confirme as diretrizes do BoraDiploma');
@@ -5227,7 +5228,7 @@ if ('serviceWorker' in navigator) {
       h += '<label style="' + cx + '"><input type="checkbox" data-ac="' + it.id + '" style="width:22px;height:22px;flex:0 0 22px;margin:1px 0 0;accent-color:var(--accent,#7a1f2b);cursor:pointer"><span>' + it.txt + '</span></label>';
     });
     h += '<button type="button" id="bdAcOk" disabled style="display:block;width:100%;margin-top:18px;padding:14px;font-size:16.5px;font-weight:800;border:0;border-radius:12px">Ativar minha conta e estudar</button>'
-      + '<div id="bdAcMsg" style="font-size:12.5px;color:var(--muted,#6b6459);margin-top:6px">Marque os 3 quadrinhos para continuar.</div>'
+      + '<div id="bdAcMsg" style="font-size:12.5px;color:var(--muted,#6b6459);margin-top:6px">Marque os ' + itens.length + ' quadrinhos para continuar.</div>'
       + '<button type="button" id="bdAcSair" style="margin-top:14px;background:none;border:0;color:var(--muted,#6b6459);text-decoration:underline;font-size:13.5px;cursor:pointer">Não concordo — sair</button>'
       + '</div>'
       // leitor dos Termos por cima da tela, sem sair do app
@@ -5242,7 +5243,7 @@ if ('serviceWorker' in navigator) {
       ok.style.background = tudo ? 'var(--accent,#7a1f2b)' : '#c9c4ba';
       ok.style.color = tudo ? '#fff' : '#f4f1ea';
       ok.style.cursor = tudo ? 'pointer' : 'not-allowed';
-      msg.textContent = tudo ? 'Tudo certo! Toque para começar.' : (n ? 'Faltam ' + (cks.length - n) + ' quadrinho' + (cks.length - n > 1 ? 's' : '') + '.' : 'Marque os 3 quadrinhos para continuar.');
+      msg.textContent = tudo ? 'Tudo certo! Toque para começar.' : (n ? 'Faltam ' + (cks.length - n) + ' quadrinho' + (cks.length - n > 1 ? 's' : '') + '.' : 'Marque os ' + cks.length + ' quadrinhos para continuar.');
     }
     cks.forEach(function(c){ c.addEventListener('change', estado); });
     estado();
