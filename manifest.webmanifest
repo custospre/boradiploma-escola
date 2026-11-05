@@ -6,6 +6,7 @@
   "id": "./app.html",
   "start_url": "./app.html",
   "scope": "./",
+  "launch_handler": { "client_mode": ["focus-existing", "auto"] },
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#ffffff",
