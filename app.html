@@ -1374,7 +1374,7 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
     subs.forEach(function(s){ pk.push({label:s.name||'(sem nome)', act:'prazos:'+s.id, vz:s.name?('Abrir prazos matéria '+s.name):''}); });
     t.push({label:'Painel de prazos', children:pk, vz:'Abrir painel de prazos'});
     t.push({label:'📝 Simulados', act:'simulado', vz:'Abrir simulado'});
-    t.push(escolaArvore());
+    escolaArvore().forEach(function(n){ t.push(n); });
     t.push({label:'📈 Relatórios', act:'relatorios', vz:'Abrir relatórios'});
     t.push({label:'💡 Sugerir melhoria', act:'sugestao', vz:'Abrir sugestões'});
     t.push({label:'🛟 Backup', act:'backup', vz:'Abrir backup'});
@@ -1432,20 +1432,29 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
   function escolaArvore(){
     var mp=null; try{ mp=JSON.parse(localStorage.getItem('bd_esc_mapa')||'null'); }catch(_){}
     var ps=mp&&Array.isArray(mp.papeis)?mp.papeis:[];
-    if(!ps.length) return {label:'🏫 Minha escola', act:'escola', vz:'Abrir minha escola'};
-    var NOME={aluno:'🎒 Aluno',responsavel:'👨‍👩‍👧 Responsável',professor:'🧑‍🏫 Professor',coordenacao:'🏫 Coordenação'};
+    if(!ps.length) return [{label:'🏫 Minha escola', act:'escola', vz:'Abrir minha escola'}];
+    var NOME={aluno:'🎒 Acesso Aluno',responsavel:'👨‍👩‍👧 Acesso Pais',professor:'🧑‍🏫 Acesso Professor',coordenacao:'🏫 Acesso Coordenação'};
+    var ORD={coordenacao:0,professor:1,responsavel:2,aluno:3};
+    var GR=[['pes','👥 Pessoas e acessos',/^k:(turmas|profs|coord|semturma)$|^painelesc$/],
+      ['com','📢 Comunicação',/^k:(avisos|grupos|xld|xport|rels)$|^h:.*(aviso|linha direta|grupo|disque|portaria|chegando)/i],
+      ['ped','📚 Pedagógico',/^k:(mats|tarefas|reds|gabs|planos|aulason|ginc|quadro)$|^h:.*(material|tarefa|reda|aula|gincana|quadro|tira-d)/i],
+      ['aco','📈 Acompanhamento',/^k:(relat2|relat|xqueda|xocorr|xautz|chpend)$|^h:.*(simulado|nota|frequ|relat|ocorr|autoriza|prova|prazo|queda)/i],
+      ['cfg','⚙️ Configurações',/^k:(xopc|iaregras|celular|seg)$/]];
     function cod(x){ return encodeURIComponent(x).replace(/:/g,'%3A'); }
-    function itens(p){ var k=[];
-      if(p.papel==='coordenacao') k.push({label:'🛠 Acessos e cadastros', act:'painelesc', vz:'Abrir acessos e cadastros'});
-      var it=(mp.itens||{})[p.id]||[];
-      if(!it.length) k.push({label:'🏫 Abrir', act:'escir:'+p.id+':', vz:''});   // ainda não abriu este papel: as partes aparecem depois da 1ª vez
-      it.forEach(function(x){ k.push({label:x.l, act:'escir:'+p.id+':'+cod(x.t), vz:''}); });
-      return k; }
-    if(ps.length===1&&ps[0].papel!=='coordenacao'&&!((mp.itens||{})[ps[0].id]||[]).length) return {label:'🏫 Minha escola', act:'escir:'+ps[0].id+':', vz:'Abrir minha escola'};
-    if(ps.length===1) return {label:'🏫 Minha escola', children:itens(ps[0]), vz:'Abrir minha escola'};
     var varias=ps.some(function(p){ return p.escola!==ps[0].escola; });
-    return {label:'🏫 Minha escola', vz:'Abrir minha escola', children:ps.map(function(p){
-      return {label:(NOME[p.papel]||p.papel)+(p.papel==='responsavel'&&p.filho?' de '+p.filho:'')+(varias?' · '+p.escola:''), children:itens(p)}; })};
+    function itens(p){
+      var it=((mp.itens||{})[p.id]||[]).map(function(x){ return {t:x.t, n:{label:x.l, act:'escir:'+p.id+':'+cod(x.t), vz:''}}; });
+      if(p.papel==='coordenacao') it.unshift({t:'painelesc', n:{label:'🛠 Acessos e cadastros', act:'painelesc', vz:'Abrir acessos e cadastros'}});
+      if(!((mp.itens||{})[p.id]||[]).length) it.push({t:'', n:{label:'🏫 Abrir', act:'escir:'+p.id+':', vz:''}});   // as partes aparecem depois da 1ª vez
+      if(it.length<=8) return it.map(function(x){ return x.n; });
+      var grupos=GR.map(function(g){ return {label:g[1], children:[], re:g[2]}; }), outros={label:'📌 Outros', children:[]};
+      it.forEach(function(x){ var g=null; grupos.some(function(y){ if(y.re.test(x.t)){ g=y; return true; } }); (g||outros).children.push(x.n); });
+      if(outros.children.length) grupos.push(outros);
+      return grupos.filter(function(g){ return g.children.length; }).map(function(g){ return {label:g.label, children:g.children}; });
+    }
+    return ps.slice().sort(function(a,b){ return (ORD[a.papel]||0)-(ORD[b.papel]||0); }).map(function(p){
+      var lb=(NOME[p.papel]||p.papel)+(p.papel==='responsavel'&&p.filho&&ps.filter(function(q){ return q.papel==='responsavel'; }).length>1?' · '+p.filho:'')+(varias?' · '+p.escola:'');
+      return {label:lb, children:itens(p), vz:'Abrir '+lb.replace(/^\S+\s/,'')}; });
   }
 
   function handleAct(act){
