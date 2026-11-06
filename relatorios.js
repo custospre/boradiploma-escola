@@ -19,7 +19,9 @@
       +'.rl-t th{background:var(--accent-soft,var(--soft,#e3ebf6));font-weight:700;position:sticky;top:0}.rl-t td.n,.rl-t th.n{text-align:right}'
       +'.rl-b{display:inline-block;width:70px;height:8px;border-radius:5px;background:var(--line,#ddd);overflow:hidden;vertical-align:middle;margin-right:6px}.rl-b i{display:block;height:100%}'
       +'.rl-red{color:#c0392b;font-weight:700}.rl-dim{opacity:.7;font-size:.82rem}.rl-h{font-weight:700;margin:14px 0 6px}.rl-x{margin:6px 0 4px}'
-      +'.rl-x button{border:1px solid var(--line,#ddd);background:none;color:inherit;border-radius:10px;padding:7px 11px;font:inherit;font-size:.85rem;cursor:pointer}';
+      +'.rl-x button{border:1px solid var(--line,#ddd);background:none;color:inherit;border-radius:10px;padding:7px 11px;font:inherit;font-size:.85rem;cursor:pointer}'
+      +'.rl-modo{display:inline-flex;border:1px solid var(--line,#ddd);border-radius:999px;overflow:hidden;margin:0 0 10px}.rl-modo button{border:0;background:none;color:inherit;padding:7px 14px;font:inherit;font-size:.88rem;cursor:pointer}.rl-modo button.on{background:var(--accent,#1f4e8c);color:#fff}'
+      +'.rl-gc{border:1px solid var(--line,#ddd);border-radius:12px;padding:8px 10px;margin:0 0 12px}.rl-g{width:100%;height:auto;display:block}.rl-leg{display:flex;flex-wrap:wrap;gap:10px;font-size:.8rem;margin-top:4px}.rl-leg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:middle}';
     document.head.appendChild(st);
   }
   function idade(n){ if(!n) return null; var p=String(n).split('-'), h=new Date(), i=h.getFullYear()-(+p[0]); if(h.getMonth()+1<+p[1]||(h.getMonth()+1===+p[1]&&h.getDate()<+p[2])) i--; return i; }
@@ -130,6 +132,7 @@
       h+='<div class="rl-h">🏆 Maiores médias</div>'+tabela('top',[['#','n'],['Aluno'],['Turma'],['Média']],rk.slice(0,10).map(lin),rk.slice(0,10).map(lc));
       var bt=rk.slice().reverse().slice(0,10);
       h+='<div class="rl-h">🆘 Menores médias</div>'+tabela('bot',[['#','n'],['Aluno'],['Turma'],['Média']],bt.map(lin),bt.map(lc));
+      h+='<details class="rl-det"><summary class="rl-h" style="cursor:pointer">📋 Classificação completa: do 1º ao '+rk.length+'º</summary>'+tabela('rank',[['#','n'],['Aluno'],['Turma'],['Média']],rk.map(lin),rk.map(lc))+'</details>';
       var todos=A.slice().sort(function(x,y){ return x.turma.localeCompare(y.turma,'pt',{numeric:true})||x.nome.localeCompare(y.nome); });
       var mats=[]; N.forEach(function(n){ if(mats.indexOf(n.materia)<0) mats.push(n.materia); }); mats.sort();
       if(mats.length){ var mm=function(a,m){ return media(N.filter(function(n){ return n.aluno===a&&n.materia===m; }).map(function(n){ return n.v; })); };
@@ -194,23 +197,82 @@
     return h;
   }
 
+  // ---------------- 📈 GRÁFICOS (um para cada tabela do relatório) ----------------
+  function num(v){ if(v==null) return null; var s=String(v).replace(/<[^>]+>/g,'').replace('%','').replace(/\./g,'').replace(',','.').trim(); if(s===''||s==='–') return null; var n=+s; return isNaN(n)?null:n; }
+  function corG(v,pct){ var v10=pct?v/10:v; return v10>=7?'#2e8b57':(v10>=6?'#d39b22':'#c0392b'); }
+  function barras(tit,linhas){ // linhas: [{r:rótulo,v:valor}], escala automática
+    if(!linhas.length) return '';
+    var max=Math.max.apply(null,linhas.map(function(x){ return x.v; }).concat([1])), pct=linhas.pct, escala10=!pct&&max<=10;
+    var lim=escala10?10:(pct?100:max), h=linhas.length*26+10, W=640, L=170;
+    var s='<svg viewBox="0 0 '+W+' '+h+'" class="rl-g" role="img" aria-label="'+E(tit)+'">'+linhas.map(function(x,i){ var y=i*26+6, w=Math.max(2,(W-L-60)*x.v/lim);
+      return '<text x="'+(L-8)+'" y="'+(y+14)+'" text-anchor="end" font-size="12" fill="currentColor">'+E(String(x.r).slice(0,26))+'</text>'
+        +'<rect x="'+L+'" y="'+(y+2)+'" width="'+w+'" height="17" rx="4" fill="'+(escala10||pct?corG(x.v,pct):'#1f4e8c')+'"/>'
+        +'<text x="'+(L+w+6)+'" y="'+(y+15)+'" font-size="12" fill="currentColor">'+String(Math.round(x.v*10)/10).replace('.',',')+(pct?'%':'')+'</text>'; }).join('')+'</svg>';
+    return '<div class="rl-gc"><div class="rl-h">'+tit+'</div>'+s+'</div>';
+  }
+  function linhaG(tit,xs,series){ // xs: rótulos; series: [{n:nome,c:cor,v:[valores|null]}], escala 0–10
+    if(!xs.length||!series.length) return '';
+    var W=640,H=230,L=60,B=40,T=14,R=60, dx=xs.length>1?(W-L-R)/(xs.length-1):0;
+    function px(i){ return L+(xs.length>1?i*dx:(W-L-R)/2); } function py(v){ return T+(H-T-B)*(1-v/10); }
+    var s='<svg viewBox="0 0 '+W+' '+H+'" class="rl-g" role="img" aria-label="'+E(tit)+'">';
+    [0,2,4,6,8,10].forEach(function(g){ s+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+py(g)+'" y2="'+py(g)+'" stroke="currentColor" stroke-opacity="'+(g===6?.35:.12)+'"'+(g===6?' stroke-dasharray="4 3"':'')+'/><text x="'+(L-6)+'" y="'+(py(g)+4)+'" text-anchor="end" font-size="11" fill="currentColor" opacity=".7">'+g+'</text>'; });
+    xs.forEach(function(x,i){ s+='<text x="'+px(i)+'" y="'+(H-B+16)+'" text-anchor="middle" font-size="11" fill="currentColor" opacity=".8">'+E(String(x).slice(0,14))+'</text>'; });
+    series.forEach(function(se){ var pts=[]; se.v.forEach(function(v,i){ if(v!=null) pts.push([px(i),py(v)]); });
+      if(pts.length>1) s+='<polyline fill="none" stroke="'+se.c+'" stroke-width="'+(se.forte?3.5:2)+'" points="'+pts.map(function(p){ return p[0].toFixed(1)+','+p[1].toFixed(1); }).join(' ')+'"/>';
+      pts.forEach(function(p){ s+='<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="'+(se.forte?4.5:3.5)+'" fill="'+se.c+'"/>'; }); });
+    s+='</svg><div class="rl-leg">'+series.map(function(se){ return '<span><i style="background:'+se.c+'"></i>'+E(se.n)+'</span>'; }).join('')+'</div>';
+    return '<div class="rl-gc"><div class="rl-h">'+tit+'</div>'+s+'</div>';
+  }
+  var PAL=['#1f4e8c','#c9a24a','#2e8b57','#c0392b','#7b4ea3','#1d8fa5','#d1662b','#5d6673','#a8434f','#137a6b'];
+  function evolucao(N,tit,porMat){ // N: [{materia,avaliacao,v}]
+    var xs=[]; N.forEach(function(n){ if(xs.indexOf(n.avaliacao)<0) xs.push(n.avaliacao); });
+    xs.sort(function(a,b){ return a.localeCompare(b,'pt',{numeric:true}); });
+    if(xs.length<2) return '';
+    function serie(lista){ return xs.map(function(x){ return media(lista.filter(function(n){ return n.avaliacao===x; }).map(function(n){ return n.v; })); }); }
+    var se=[{n:'Média geral',c:'#14213a',forte:true,v:serie(N)}];
+    if(porMat){ var mats=[]; N.forEach(function(n){ if(mats.indexOf(n.materia)<0) mats.push(n.materia); }); mats.sort();
+      mats.slice(0,9).forEach(function(m,i){ se.push({n:m,c:PAL[i%PAL.length],v:serie(N.filter(function(n){ return n.materia===m; }))}); }); }
+    return linhaG(tit,xs,se);
+  }
+  function graficos(aba,F){
+    var h='';
+    if(aba==='geral'||aba==='notas'||aba==='disc') h+=evolucao(F.N,'📈 Evolução das médias por avaliação (geral e por matéria)',true);
+    Object.keys(CSV).forEach(function(id){ var L=CSV[id]; if(!L||L.length<2) return; var cab=L[0], rows=L.slice(1);
+      var ci=-1; for(var i=0;i<cab.length;i++){ if(cab[i]!=='#'&&rows.some(function(r){ return num(r[i])==null&&String(r[i]||'').trim()!==''; })){ ci=i; break; } }
+      if(ci<0) ci=0;
+      var vi=-1, vs=-1; function sc(t){ return /média/i.test(t)?4:/frequ|acerto/i.test(t)?3:/%/.test(t)?2:/nota/i.test(t)?1:0; }
+      for(var j=0;j<cab.length;j++){ if(j===ci||cab[j]==='#') continue; var ok=rows.filter(function(r){ return num(r[j])!=null; }).length; if(ok>=Math.max(1,rows.length/2)&&sc(cab[j])>vs){ vi=j; vs=sc(cab[j]); } }
+      if(vi<0) return;
+      var lin=rows.map(function(r){ return {r:r[ci],v:num(r[vi])}; }).filter(function(x){ return x.v!=null; }).slice(0,30);
+      lin.pct=/%|frequ/i.test(cab[vi])||rows.some(function(r){ return /%/.test(String(r[vi])); });
+      var NM={top:'🏆 Maiores médias: ',bot:'🆘 Menores médias: ',rank:'📋 Classificação completa: '};
+      h+=barras((NM[id]||'')+(cab[ci]||'')+' × '+cab[vi],lin);
+    });
+    return h||'<div class="rl-dim" style="padding:6px 2px">Sem dados para gráfico com estes filtros.</div>';
+  }
+  window.BDGraficos={ evolucaoAluno:function(lista){ // lista de notas oficiais do aluno: {materia,avaliacao,nota,nota_max}
+    return evolucao((lista||[]).map(function(n){ return {materia:n.materia,avaliacao:n.avaliacao,v:+n.nota/(+n.nota_max||10)*10}; }),'📈 Evolução das notas',true); } };
+
   // desenha tudo dentro de el; o estado (aba, filtros) fica guardado no próprio elemento
   window.BDRelatorios={ desenhar:function(el,D,nomeEscola){
     css();
-    var P=prepara(D), st=el._rl||(el._rl={aba:'geral',esc:'*',disc:'',mes:0});
+    var P=prepara(D), st=el._rl||(el._rl={aba:'geral',esc:'*',disc:'',mes:0,modo:'tab'});
     var cursos=[]; P.A.forEach(function(a){ if(a.curso!=='Sem curso'&&cursos.indexOf(a.curso)<0) cursos.push(a.curso); }); cursos.sort(function(x,y){ return x.localeCompare(y,'pt',{numeric:true}); });
     var mats=[]; P.N.concat(P.S).forEach(function(n){ if(mats.indexOf(n.materia)<0) mats.push(n.materia); }); mats.sort();
     var F=filtra(P,st.esc,st.disc);
-    var h='<div class="rl-f"><select data-rlesc><option value="*">🏫 Colégio inteiro</option>'
+    var h='<div class="rl-modo"><button type="button" data-rlmodo="tab"'+(st.modo!=='graf'?' class="on"':'')+'>📋 Tabelas</button><button type="button" data-rlmodo="graf"'+(st.modo==='graf'?' class="on"':'')+'>📈 Gráficos</button></div>'
+      +'<div class="rl-f"><select data-rlesc><option value="*">🏫 Colégio inteiro</option>'
       +(cursos.length?'<optgroup label="Curso">'+cursos.map(function(c){ return '<option value="c:'+E(c)+'"'+(st.esc==='c:'+c?' selected':'')+'>🎓 '+E(c)+'</option>'; }).join('')+'</optgroup>':'')
       +'<optgroup label="Turma">'+(D.turmas||[]).map(function(t){ return '<option value="t:'+t.id+'"'+(st.esc==='t:'+t.id?' selected':'')+'>🏷️ '+E(t.nome)+'</option>'; }).join('')+'</optgroup></select>'
       +'<select data-rldisc><option value="">📚 Todas as disciplinas</option>'+mats.map(function(m){ return '<option'+(st.disc===m?' selected':'')+'>'+E(m)+'</option>'; }).join('')+'</select></div>'
       +'<div class="rl-abas">'+ABAS.map(function(a){ return '<button type="button" data-rlaba="'+a[0]+'"'+(st.aba===a[0]?' class="on"':'')+'>'+a[1]+'</button>'; }).join('')+'</div>';
     CSV={};
-    h+=abas(st.aba,P,F,st)+'<p class="rl-dim" style="margin-top:8px">Notas convertidas para a escala de 0 a 10. Dados de '+new Date(D.gerado_em||Date.now()).toLocaleString('pt-BR')+'.</p>';
+    if(st.modo==='graf'){ abas(st.aba,P,F,st); h+=graficos(st.aba,F); } else h+=abas(st.aba,P,F,st);
+    h+='<p class="rl-dim" style="margin-top:8px">Notas convertidas para a escala de 0 a 10. Dados de '+new Date(D.gerado_em||Date.now()).toLocaleString('pt-BR')+'.</p>';
     el.innerHTML=h;
     if(!el._rlOk){ el._rlOk=true;
-      el.addEventListener('click',function(e){ var b=e.target.closest('[data-rlaba]'); if(b){ el._rl.aba=b.getAttribute('data-rlaba'); window.BDRelatorios.desenhar(el,el._rlD,el._rlN); return; }
+      el.addEventListener('click',function(e){ var md=e.target.closest('[data-rlmodo]'); if(md){ el._rl.modo=md.getAttribute('data-rlmodo'); window.BDRelatorios.desenhar(el,el._rlD,el._rlN); return; }
+        var b=e.target.closest('[data-rlaba]'); if(b){ el._rl.aba=b.getAttribute('data-rlaba'); window.BDRelatorios.desenhar(el,el._rlD,el._rlN); return; }
         var c=e.target.closest('[data-rlcsv]'); if(c){ var ab=ABAS.filter(function(a){ return a[0]===el._rl.aba; })[0]; baixa(c.getAttribute('data-rlcsv'),'relatorio-'+String(el._rlN||'escola').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\w]+/g,'-').toLowerCase()+'-'+c.getAttribute('data-rlcsv')); } });
       el.addEventListener('change',function(e){ var t=e.target;
         if(t.hasAttribute('data-rlesc')) el._rl.esc=t.value; else if(t.hasAttribute('data-rldisc')) el._rl.disc=t.value; else if(t.hasAttribute('data-rlmes')) el._rl.mes=+t.value; else return;
