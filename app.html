@@ -1521,9 +1521,10 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
     var ps=mp&&Array.isArray(mp.papeis)?mp.papeis:[], meu={};
     ps.forEach(function(p){ if(!meu[p.papel]) meu[p.papel]=p.id; });
     return ACESSOS.map(function(a,ai){
-      function folha(x,gi,ii){ return {label:x[0], act:'acesso:'+ai+':'+gi+':'+ii, vz:'', extra:'<small class="tdesc">'+esc(x[1])+'</small>'}; }
+      var QUEM={aluno:'Aluno',responsavel:'Pais',professor:'Professor',coordenacao:'Coordenação'}[a.p]||'';
+      function folha(x,gi,ii){ return {label:x[0]+' · '+QUEM, act:'acesso:'+ai+':'+gi+':'+ii, vz:'', extra:'<small class="tdesc">'+esc(x[1])+'</small>'}; }
       var kids=a.g.length===1&&!a.g[0][0]?a.g[0][1].map(function(x,ii){ return folha(x,0,ii); })
-        :a.g.map(function(g,gi){ return {label:g[0], children:g[1].map(function(x,ii){ return folha(x,gi,ii); })}; });
+        :a.g.map(function(g,gi){ return {label:g[0]+' · '+QUEM, children:g[1].map(function(x,ii){ return folha(x,gi,ii); })}; });
       return {label:a.t+(meu[a.p]?'':' 👁'), children:kids, vz:'Abrir '+a.t.replace(/^\S+\s/,'')}; });
   }
   function acessoAbre(ai,gi,ii){ var a=ACESSOS[+ai]; if(!a) return; var x=((a.g[+gi]||[])[1]||[])[+ii]; if(!x) return;
