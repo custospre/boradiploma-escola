@@ -1374,7 +1374,7 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
     subs.forEach(function(s){ pk.push({label:s.name||'(sem nome)', act:'prazos:'+s.id, vz:s.name?('Abrir prazos matéria '+s.name):''}); });
     t.push({label:'Painel de prazos', children:pk, vz:'Abrir painel de prazos'});
     t.push({label:'📝 Simulados', act:'simulado', vz:'Abrir simulado'});
-    t.push({label:'🏫 Minha escola', act:'escola', vz:'Abrir minha escola'});
+    t.push(escolaArvore());
     t.push({label:'📈 Relatórios', act:'relatorios', vz:'Abrir relatórios'});
     t.push({label:'💡 Sugerir melhoria', act:'sugestao', vz:'Abrir sugestões'});
     t.push({label:'🛟 Backup', act:'backup', vz:'Abrir backup'});
@@ -1428,8 +1428,28 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
       movePop.style.left=Math.max(8,Math.min(window.innerWidth-w-8,e.clientX))+'px'; movePop.style.top=Math.max(8,Math.min(window.innerHeight-h-8,e.clientY))+'px';
     });
   }
+  // 🏫 Minha escola no índice: cada pessoa vê só a parte do(s) seu(s) papel(is) (o mapa é guardado quando a Minha escola abre)
+  function escolaArvore(){
+    var mp=null; try{ mp=JSON.parse(localStorage.getItem('bd_esc_mapa')||'null'); }catch(_){}
+    var ps=mp&&Array.isArray(mp.papeis)?mp.papeis:[];
+    if(!ps.length) return {label:'🏫 Minha escola', act:'escola', vz:'Abrir minha escola'};
+    var NOME={aluno:'🎒 Aluno',responsavel:'👨‍👩‍👧 Responsável',professor:'🧑‍🏫 Professor',coordenacao:'🏫 Coordenação'};
+    function cod(x){ return encodeURIComponent(x).replace(/:/g,'%3A'); }
+    function itens(p){ var k=[];
+      if(p.papel==='coordenacao') k.push({label:'🛠 Acessos e cadastros', act:'painelesc', vz:'Abrir acessos e cadastros'});
+      k.push({label:'🏫 Abrir tudo', act:'escir:'+p.id+':', vz:''});
+      ((mp.itens||{})[p.id]||[]).forEach(function(x){ k.push({label:x.l, act:'escir:'+p.id+':'+cod(x.t), vz:''}); });
+      return k; }
+    if(ps.length===1) return {label:'🏫 Minha escola', children:itens(ps[0]), vz:'Abrir minha escola'};
+    var varias=ps.some(function(p){ return p.escola!==ps[0].escola; });
+    return {label:'🏫 Minha escola', vz:'Abrir minha escola', children:ps.map(function(p){
+      return {label:(NOME[p.papel]||p.papel)+(p.papel==='responsavel'&&p.filho?' de '+p.filho:'')+(varias?' · '+p.escola:''), children:itens(p)}; })};
+  }
+
   function handleAct(act){
     if(!act)return;
+    if(act==='painelesc'){ location.href='painel.html'; return; }
+    if(act.indexOf('escir:')===0){ var r0=act.slice(6), c0=r0.indexOf(':'); if(window.bdEscolaIr) window.bdEscolaIr(r0.slice(0,c0),decodeURIComponent(r0.slice(c0+1))); else openEscola(); return; }
     if(act==='prazos'){ openPrazos(); return; }
     if(act==='manual'){ openManual(); return; }
     if(act==='fora'){ openFora(); return; }
@@ -3529,7 +3549,7 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
     var et=document.getElementById('escTit'); if(et) et.textContent=modo==='rel'?'📈 Relatórios':'🏫 Minha escola';
     if(window.bdEscola) window.bdEscola.abrir(document.getElementById('escBox'),modo==='rel'?'rel':'');
   }
-  window.bdAbrirEscola=openEscola; window.bdToast=toast; window.bdRenderTree=function(){ if(viewIndex&&!viewIndex.hidden) renderTree(); };
+  window.bdAbrirEscola=openEscola; window.bdToast=toast; window.bdRenderTree=function(){ if(viewIndex&&!viewIndex.hidden){ var ab=treeOpenKeys(); renderTree(); treeReopen(ab); } };
   // chegou conteúdo de outro aparelho: redesenha a tela em que a pessoa está, sem recarregar o app (true = redesenhou)
   window.bdRefreshTela=function(){
     try{
@@ -6289,6 +6309,7 @@ if ('serviceWorker' in navigator) {
 .efturmas{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:2px 10px;margin:4px 0}.efturmas .escchk{margin:2px 0}.efturbts{display:flex;gap:6px;margin-top:4px}.efturbts .escbtn2{padding:4px 10px;font-size:.8rem}
 .pnm[data-ea]{cursor:pointer;transition:transform .12s,box-shadow .12s}.pnm[data-ea]:hover{transform:translateY(-2px);box-shadow:0 4px 14px rgba(0,0,0,.08)}.pnm[data-ea]::after{content:'ver lista ›';font-size:.7rem;color:var(--accent);margin-top:2px}
 .pndl{max-height:60vh;overflow:auto}.pndl div{padding:7px 2px;border-bottom:1px solid var(--line)}.pndl div b{display:block;font-weight:600}.pndl small{color:var(--muted)}
+.escfoco{outline:3px solid var(--accent);outline-offset:3px;border-radius:12px;transition:outline-color .6s}
 .pnmini{display:grid;grid-template-columns:1fr 1fr;gap:12px}.pnm{display:flex;flex-direction:column;align-items:flex-start}.pnm b{font-size:1.7rem;line-height:1.1;margin-top:6px}
 .pnic{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb,var(--accent,#1f4e8c) 12%,transparent);font-size:1.15rem}
 @media (max-width:640px){.pnres{grid-template-columns:1fr}}
@@ -6340,7 +6361,7 @@ if ('serviceWorker' in navigator) {
     if(!dados.length) box.innerHTML='<div class="escvazio">Carregando…</div>';
     return Promise.all([rpc('escola_painel'), rpc('chat_grupos').catch(function(){ return []; }), rpc('avisos_meus').catch(function(){ return []; }), rpc('materiais_lista').catch(function(){ return null; }), rpc('simulados_meus').catch(function(){ return []; }), rpc('relatos_meus',{p_protocolos:protos()}).catch(function(){ return []; }), rpc('escola_marca').catch(function(){ return null; }), rpc('termos_meus',{p_ver:TERMO_VER}).catch(function(){ return null; }), rpc('redacao_lista').catch(function(){ return []; }), rpc('aulas_online_lista').catch(function(){ return []; }), rpc('esc_minhas_turmas').catch(function(){ return []; })]).then(function(r){
       reds=Array.isArray(r[8])?r[8]:[]; aulasOn=Array.isArray(r[9])?r[9]:[]; minhasT=Array.isArray(r[10])?r[10]:[]; quadros={}; rkMud={}; xLimpa(); painelR={}; gincs={};
-      dados=Array.isArray(r[0])?r[0]:[]; grupos=Array.isArray(r[1])?r[1]:[]; avisos=Array.isArray(r[2])?r[2]:[]; if(Array.isArray(r[3])) guardaMats(r[3]); sims=Array.isArray(r[4])?r[4]:[]; relatos=Array.isArray(r[5])?r[5]:[]; if(sel>=dados.length) sel=0;
+      dados=Array.isArray(r[0])?r[0]:[]; try{ mapaPapeis(dados); }catch(_){} grupos=Array.isArray(r[1])?r[1]:[]; avisos=Array.isArray(r[2])?r[2]:[]; if(Array.isArray(r[3])) guardaMats(r[3]); sims=Array.isArray(r[4])?r[4]:[]; relatos=Array.isArray(r[5])?r[5]:[]; if(sel>=dados.length) sel=0;
       if(Array.isArray(r[6])){ marcas=r[6]; aplicarMarca(); }
       termos=Array.isArray(r[7])?r[7]:null;
       var m=atual(); if(m&&m.papel==='aluno') rpc('simulado_saldo').then(function(n){ if(typeof n==='number'){ simSaldo=n; if(!ocupado()) desenhar(); } },function(){}); estudoFilho={}; credFilho={}; denuncias=[]; avisosEsc=[]; filhoRes={}; relatosEsc=[]; acessos={}; relat={}; simProf=null; relDados={}; notasMinhas=null; notasFilho={}; chamPend=null; freqMinha=null; freqFilho={}; usoCfg={}; usoCarrega(false);
@@ -6412,7 +6433,6 @@ if ('serviceWorker' in navigator) {
     h+='<div class="esccard escgp"><label class="escsw" title="Liga ou desliga"><input type="checkbox" data-ea="gp"'+(gp?' checked':'')+'><span></span></label>'
       +'<div><h3>👨‍👩‍👧 Grupo dos pais da turma: '+(gp?'<b class="escok">liberado</b>':'<b class="escoff">desligado</b>')+'</h3>'
       +'<p>Quando liberado, os responsáveis de cada turma veem uns aos outros e têm um grupo só deles, separado do grupo dos alunos. Com ou sem o grupo, cada responsável vê só o próprio filho e a escola.</p></div></div>';
-    h+='<a class="escbtn escpainel" href="painel.html">🛠 Abrir o Painel da escola</a><span class="escdim"> liberar, bloquear e remover acessos</span>';
     h+=denunciasHTML();
     var nv=avisosEsc.reduce(function(n,a){ return n+(+a.novas||0); },0);
     h+=secao('avisos','📢 Avisos da escola',avisosEsc.length+' enviado'+(avisosEsc.length===1?'':'s')+(nv?' · <b class="escnovas">'+nv+' resposta'+(nv===1?'':'s')+' nova'+(nv===1?'':'s')+'</b>':''),
@@ -7588,8 +7608,34 @@ if ('serviceWorker' in navigator) {
     var ref=document.createComment('s'); box.insertBefore(ref,ss[0]);
     function k(x){ var b=x.querySelector('.escgh'); var t=b?b.firstChild&&b.childNodes:null; var tx=(b?b.textContent:'').replace(/^[^A-Za-zÀ-ú]+/,''); return tx.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase(); }
     ss.sort(function(a,b){ return k(a).localeCompare(k(b),'pt'); }).forEach(function(x){ box.insertBefore(x,ref); }); ref.remove(); }
-  function posDesenho(){ ordenaSecoes(); var el=box&&box.querySelector('#escRelBox'), m=atual(); if(el&&m&&relDados[m.escola.id]&&relDados[m.escola.id].d&&window.BDRelatorios){ if(relEl&&relEl._rl) el._rl=relEl._rl; window.BDRelatorios.desenhar(el,relDados[m.escola.id].d,m.escola.nome); relEl=el; } }
+  // ---------- mapa para o índice (papéis e partes da Minha escola) ----------
+  var pendSel=null, pendAlvo=null, pendTent=0, pendFim=0, pendTimer=null;
+  function mapaLer(){ try{ return JSON.parse(localStorage.getItem('bd_esc_mapa')||'null')||{}; }catch(_){ return {}; } }
+  function mapaGrava(mp){ var a=JSON.stringify(mp); var antes=''; try{ antes=localStorage.getItem('bd_esc_mapa')||''; localStorage.setItem('bd_esc_mapa',a); }catch(_){} if(antes!==a&&window.bdRenderTree) window.bdRenderTree(); }
+  function mapaPapeis(l){ var mp=mapaLer(), ant=JSON.stringify(mp.papeis||[]);
+    mp.papeis=(l||[]).map(function(m){ return {id:m.membro_id,papel:m.papel,escola:(m.escola||{}).nome||'',filho:m.papel==='responsavel'?primeiro(((m.filho||{}).nome)||''):''}; });
+    var ids={}; mp.papeis.forEach(function(p){ ids[p.id]=1; }); var it=mp.itens||{}; Object.keys(it).forEach(function(k){ if(!ids[k]) delete it[k]; }); mp.itens=it;
+    if(JSON.stringify(mp.papeis)!==ant||!mp.em) { mp.em=Date.now(); mapaGrava(mp); } }
+  function mapaPartes(){ var m=atual(); if(!m||!box||modoRel||m.bloqueado||precisaTermo(m)) return;
+    var l=[]; [].forEach.call(box.querySelectorAll('.escgh[data-k], h2.esch2, h2'),function(e){ if(e.closest('.escgb')||e.closest('.escmodal')) return;
+      var t, lb;
+      if(e.hasAttribute('data-k')){ var c=e.cloneNode(true); [].forEach.call(c.querySelectorAll('.esccar,.esccount'),function(x){ x.remove(); }); lb=c.textContent.replace(/\s+/g,' ').trim(); t='k:'+e.getAttribute('data-k'); }
+      else { lb=e.textContent.replace(/\s+/g,' ').trim(); t='h:'+lb; }
+      if(lb&&!l.some(function(x){ return x.t===t; })) l.push({t:t,l:lb.slice(0,60)}); });
+    if(!l.length) return; var mp=mapaLer(); mp.itens=mp.itens||{}; if(JSON.stringify(mp.itens[m.membro_id])===JSON.stringify(l)) return; mp.itens[m.membro_id]=l; mapaGrava(mp); }
+  function vaiAlvo(){ if(!pendAlvo||!box) return false; var a=pendAlvo, el=null;
+    if(a.indexOf('k:')===0){ var bt=box.querySelector('.escgh[data-k="'+a.slice(2).replace(/"/g,'')+'"]'); if(bt){ if(!aberto[a.slice(2)]) bt.click(); el=bt.parentNode; } }
+    else if(a.indexOf('h:')===0){ var tx=a.slice(2); [].some.call(box.querySelectorAll('h2'),function(h){ if(h.textContent.replace(/\s+/g,' ').trim().slice(0,60)===tx){ el=h; return true; } }); }
+    if(!el){ if(++pendTent>4) pendAlvo=null; return false; }
+    if(!pendFim) pendFim=Date.now()+3000; else if(Date.now()>pendFim){ pendAlvo=null; pendFim=0; return true; }
+    clearTimeout(pendTimer); pendTimer=setTimeout(function(){ if(!el.isConnected) return; var y=el.getBoundingClientRect().top+window.pageYOffset-70; window.scrollTo(0,Math.max(0,y));
+      el.classList.add('escfoco'); setTimeout(function(){ el.classList.remove('escfoco'); },1800); },350); return true; }
+  window.bdEscolaIr=function(membro,alvo){ pendSel=membro||null; pendAlvo=alvo||null; pendTent=0; pendFim=0; if(window.bdAbrirEscola) window.bdAbrirEscola(); };
+  function posDesenho(){
+    if(pendSel&&dados.length){ var ix=-1; dados.forEach(function(m,i){ if(m.membro_id===pendSel) ix=i; }); pendSel=null; if(ix>=0&&ix!==sel){ sel=ix; desenhar(); return; } }
+    ordenaSecoes(); var el=box&&box.querySelector('#escRelBox'), m=atual(); if(el&&m&&relDados[m.escola.id]&&relDados[m.escola.id].d&&window.BDRelatorios){ if(relEl&&relEl._rl) el._rl=relEl._rl; window.BDRelatorios.desenhar(el,relDados[m.escola.id].d,m.escola.nome); relEl=el; } }
   var relEl=null;
+  var _posD=posDesenho; posDesenho=function(){ _posD.apply(this,arguments); try{ mapaPartes(); }catch(_){} vaiAlvo(); };
 
   // ---------- 📝 notas oficiais (professor lança na matéria dele; coordenação em qualquer matéria) ----------
   var notasAb=null, notasMinhas=null, notasFilho={};
@@ -8945,6 +8991,7 @@ if ('serviceWorker' in navigator) {
   (function buscaMats(n){
     if(!logado()){ if(n<200) setTimeout(function(){ buscaMats(n+1); },2000); return; }
     rpc('materiais_lista').then(function(l){ if(Array.isArray(l)) guardaMats(l); },function(){});
+    if(!n||!mapaLer().papeis) rpc('escola_painel').then(function(l){ if(Array.isArray(l)) mapaPapeis(l); },function(){});
     setTimeout(function(){ buscaMats(0); },10*60*1000);
   })(0);
   // tocar no aviso "💬 Turma · Grupo..." abre direto a conversa
