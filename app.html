@@ -1437,9 +1437,11 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
     function cod(x){ return encodeURIComponent(x).replace(/:/g,'%3A'); }
     function itens(p){ var k=[];
       if(p.papel==='coordenacao') k.push({label:'🛠 Acessos e cadastros', act:'painelesc', vz:'Abrir acessos e cadastros'});
-      k.push({label:'🏫 Abrir tudo', act:'escir:'+p.id+':', vz:''});
-      ((mp.itens||{})[p.id]||[]).forEach(function(x){ k.push({label:x.l, act:'escir:'+p.id+':'+cod(x.t), vz:''}); });
+      var it=(mp.itens||{})[p.id]||[];
+      if(!it.length) k.push({label:'🏫 Abrir', act:'escir:'+p.id+':', vz:''});   // ainda não abriu este papel: as partes aparecem depois da 1ª vez
+      it.forEach(function(x){ k.push({label:x.l, act:'escir:'+p.id+':'+cod(x.t), vz:''}); });
       return k; }
+    if(ps.length===1&&ps[0].papel!=='coordenacao'&&!((mp.itens||{})[ps[0].id]||[]).length) return {label:'🏫 Minha escola', act:'escir:'+ps[0].id+':', vz:'Abrir minha escola'};
     if(ps.length===1) return {label:'🏫 Minha escola', children:itens(ps[0]), vz:'Abrir minha escola'};
     var varias=ps.some(function(p){ return p.escola!==ps[0].escola; });
     return {label:'🏫 Minha escola', vz:'Abrir minha escola', children:ps.map(function(p){
