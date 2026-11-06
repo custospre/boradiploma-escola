@@ -32,6 +32,8 @@
   .msg{font-size:13px;color:#b42318;min-height:16px;margin-top:8px}
   .topbar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;position:sticky;top:0;z-index:40;background:var(--bg,#f6f4ee);padding:8px 0;border-bottom:1px solid var(--line,#e5e0d6)}
   .topbts{display:flex;gap:6px}
+  #voltar{position:fixed;left:12px;bottom:calc(27px + env(safe-area-inset-bottom,0px));z-index:60;height:38px;padding:0 13px;border-radius:999px;border:1px solid var(--accent,#1f4e8c);background:var(--surface,#fff);color:var(--accent,#1f4e8c);font-weight:700;font-size:14px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.15)}
+  body{padding-bottom:90px}
   .card>h2.acc{cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center;gap:8px}
   .card>h2.acc::after{content:"▼";font-size:12px;color:var(--muted,#888);transition:transform .15s}
   .card.fechado>h2.acc::after{transform:rotate(-90deg)}
@@ -109,7 +111,8 @@
 <div class="wrap">
   <div class="topbar">
     <div class="marca"><img class="logo" id="logo" src="icons/logo.png" alt=""><div><h1>Painel da Escola</h1><p class="sub" id="escNome">Liberar, bloquear e remover acessos</p></div></div>
-    <div class="topbts"><button class="sair" id="voltar" type="button">← Página anterior</button><button class="sair" id="sair" hidden>Sair</button></div>
+    <div class="topbts"><button class="sair" id="sair" hidden>Sair</button></div>
+  <button id="voltar" type="button">← Página anterior</button>
   </div>
 
   <div class="card" id="login-card">
@@ -131,6 +134,7 @@
     <div class="card" id="escolhe" hidden><label for="selEscola" style="margin-top:0">Escola</label><select id="selEscola"></select></div>
 
     <div class="card">
+      <h2>📊 Números da escola</h2>
       <div class="nums" id="nums"></div>
       <p class="hint" style="margin:10px 0 0">Alunos ativos = alunos que já entraram no app e não estão bloqueados.</p>
     </div>
@@ -564,8 +568,8 @@
   var K='bd_painel_fechados'; function lerF(){ try{ return JSON.parse(localStorage.getItem(K)||'{}')||{}; }catch(_){ return {}; } }
   function chave(h){ return (h.textContent||'').replace(/[^\wÀ-ú ]+/g,'').trim().slice(0,40); }
   function aplica(){ var f=lerF();
-    [].forEach.call(document.querySelectorAll('.card>h2:first-child'),function(h){ if(h.classList.contains('acc')) return; var c=h.parentNode; if(c.id==='login-card') return;
-      h.classList.add('acc'); if(f[chave(h)]) c.classList.add('fechado');
+    [].forEach.call(document.querySelectorAll('.card>h2:first-child'),function(h){ if(h.classList.contains('acc')) return; var c=h.parentNode; if(c.id==='login-card'||c.id==='sem-escola'||c.closest('#mbox')) return;
+      h.classList.add('acc'); c.classList.add('fechado');
       h.addEventListener('click',function(){ c.classList.toggle('fechado'); var g=lerF(); g[chave(h)]=c.classList.contains('fechado'); try{ localStorage.setItem(K,JSON.stringify(g)); }catch(_){} }); }); }
   aplica(); if(window.MutationObserver) new MutationObserver(aplica).observe(document.body,{childList:true,subtree:true});
   window.mostraNum=function(i,manter){ var nums=document.getElementById('nums'); if(!nums) return; var L=document.getElementById('numsLista');
