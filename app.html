@@ -6311,6 +6311,7 @@ if ('serviceWorker' in navigator) {
 .efturmas{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:2px 10px;margin:4px 0}.efturmas .escchk{margin:2px 0}.efturbts{display:flex;gap:6px;margin-top:4px}.efturbts .escbtn2{padding:4px 10px;font-size:.8rem}
 .pnm[data-ea]{cursor:pointer;transition:transform .12s,box-shadow .12s}.pnm[data-ea]:hover{transform:translateY(-2px);box-shadow:0 4px 14px rgba(0,0,0,.08)}.pnm[data-ea]::after{content:'ver lista ›';font-size:.7rem;color:var(--accent);margin-top:2px}
 .pndl{max-height:60vh;overflow:auto}.pndl div{padding:7px 2px;border-bottom:1px solid var(--line)}.pndl div b{display:block;font-weight:600}.pndl small{color:var(--muted)}
+.escoculto{display:none!important}.escfocobar{margin:4px 0 12px}.escfocobar .escbtn2{font-weight:700}
 .escfoco{outline:3px solid var(--accent);outline-offset:3px;border-radius:12px;transition:outline-color .6s}
 .pnmini{display:grid;grid-template-columns:1fr 1fr;gap:12px}.pnm{display:flex;flex-direction:column;align-items:flex-start}.pnm b{font-size:1.7rem;line-height:1.1;margin-top:6px}
 .pnic{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb,var(--accent,#1f4e8c) 12%,transparent);font-size:1.15rem}
@@ -7632,12 +7633,23 @@ if ('serviceWorker' in navigator) {
     if(!pendFim) pendFim=Date.now()+3000; else if(Date.now()>pendFim){ pendAlvo=null; pendFim=0; return true; }
     clearTimeout(pendTimer); pendTimer=setTimeout(function(){ if(!el.isConnected) return; var y=el.getBoundingClientRect().top+window.pageYOffset-70; window.scrollTo(0,Math.max(0,y));
       el.classList.add('escfoco'); setTimeout(function(){ el.classList.remove('escfoco'); },1800); },350); return true; }
-  window.bdEscolaIr=function(membro,alvo){ pendSel=membro||null; pendAlvo=alvo||null; pendTent=0; pendFim=0; if(window.bdAbrirEscola) window.bdAbrirEscola(); };
+  var foco=null, focoNovo=false;
+  function aplicaFoco(){ if(!box) return; var bar=box.querySelector('.escfocobar'); if(bar) bar.remove();
+    [].forEach.call(box.querySelectorAll(':scope>.escoculto'),function(e){ e.classList.remove('escoculto'); });
+    if(!foco) return; var el=null, keep=[];
+    if(foco.indexOf('k:')===0){ var bt=box.querySelector(':scope>.escsec>.escgh[data-k="'+foco.slice(2).replace(/"/g,'')+'"]'); if(bt){ el=bt.parentNode; keep=[el]; if(!aberto[foco.slice(2)]){ aberto[foco.slice(2)]=true; el.classList.add('open'); } } }
+    else if(foco.indexOf('h:')===0){ var tx=foco.slice(2); [].some.call(box.querySelectorAll(':scope>h2'),function(h){ if(h.textContent.replace(/\s+/g,' ').trim().slice(0,60)===tx){ el=h; return true; } });
+      if(el){ keep=[el]; var n=el.nextElementSibling; while(n&&!(n.tagName==='H2'||n.classList.contains('escsec')||n.classList.contains('esccomo')||n.classList.contains('escseg')||n.classList.contains('escrodape'))){ keep.push(n); n=n.nextElementSibling; } } }
+    if(!el) return;
+    [].forEach.call(box.children,function(c){ if(keep.indexOf(c)<0&&!c.classList.contains('eschead')) c.classList.add('escoculto'); });
+    var b=document.createElement('div'); b.className='escfocobar'; b.innerHTML='<button type="button" class="escbtn2" data-ea="vertudo">🏫 Ver toda a Minha escola</button>';
+    var hd=box.querySelector(':scope>.eschead'); if(hd) hd.after(b); else box.prepend(b); }
+  window.bdEscolaIr=function(membro,alvo){ pendSel=membro||null; pendAlvo=alvo||null; pendTent=0; pendFim=0; foco=alvo||null; focoNovo=true; if(window.bdAbrirEscola) window.bdAbrirEscola(); };
   function posDesenho(){
     if(pendSel&&dados.length){ var ix=-1; dados.forEach(function(m,i){ if(m.membro_id===pendSel) ix=i; }); pendSel=null; if(ix>=0&&ix!==sel){ sel=ix; desenhar(); return; } }
     ordenaSecoes(); var el=box&&box.querySelector('#escRelBox'), m=atual(); if(el&&m&&relDados[m.escola.id]&&relDados[m.escola.id].d&&window.BDRelatorios){ if(relEl&&relEl._rl) el._rl=relEl._rl; window.BDRelatorios.desenhar(el,relDados[m.escola.id].d,m.escola.nome); relEl=el; } }
   var relEl=null;
-  var _posD=posDesenho; posDesenho=function(){ _posD.apply(this,arguments); try{ mapaPartes(); }catch(_){} vaiAlvo(); };
+  var _posD=posDesenho; posDesenho=function(){ _posD.apply(this,arguments); try{ mapaPartes(); }catch(_){} try{ aplicaFoco(); }catch(_){} if(foco){ if(pendAlvo){ pendAlvo=null; window.scrollTo(0,0); } } else vaiAlvo(); };
 
   // ---------- 📝 notas oficiais (professor lança na matéria dele; coordenação em qualquer matéria) ----------
   var notasAb=null, notasMinhas=null, notasFilho={};
@@ -8668,6 +8680,7 @@ if ('serviceWorker' in navigator) {
   function extBotoesTurma(tid){ return '<div class="escacts" style="margin-top:6px"><button type="button" class="escbtn2" data-ea="ocnova" data-t="'+tid+'">📋 Ocorrência</button><button type="button" class="escbtn2" data-ea="autnova" data-t="'+tid+'">✍️ Autorização</button><button type="button" class="escbtn2" data-ea="grade" data-t="'+tid+'">🕒 Grade</button><button type="button" class="escbtn2 ginbt" data-ea="ginnova" data-t="'+tid+'">🏆 Gincana Rumo ao ENEM</button></div>'; }
   function extClique(a,b,id,m){
     if(ginClique(a,b,id,m)) return true;
+    if(a==='vertudo'){ foco=null; desenhar(); window.scrollTo(0,0); return true; }
     if(a==='pndet'){ painelDetalhe(m,b.getAttribute('data-k'),(b.querySelector('small')||{}).textContent||''); return true; }
     if(a==='pntog'){ var r0=false; try{ r0=localStorage.getItem('bd_painel_rec')==='1'; localStorage.setItem('bd_painel_rec',r0?'0':'1'); }catch(_){} desenhar(); return true; }
     if(a==='xopc'){ var k=b.getAttribute('data-k'), on=b.checked, p={}; p[k]=on; rpc('escola_opcoes_salvar',{p_escola:m.escola.id,p:p}).then(function(){ aviso('Salvo'); xLimpa(); desenhar(); },function(e){ b.checked=!on; aviso(novErro(e)); }); return true; }
@@ -8971,7 +8984,7 @@ if ('serviceWorker' in navigator) {
       function(er){ codPre=cv; aviso(er.message); if(window.bdAbrirEscola) window.bdAbrirEscola(); });
   })(0);
 
-  window.bdEscola={ abrir:function(el,modo){ modoRel=modo==='rel'; if(box!==el){ box=el; box.addEventListener('click',clique);
+  window.bdEscola={ abrir:function(el,modo){ if(!focoNovo) foco=null; focoNovo=false; modoRel=modo==='rel'; if(box!==el){ box=el; box.addEventListener('click',clique);
     box.addEventListener('input',function(e){ if(chamAb&&(e.target.id==='chCont'||e.target.id==='chObs')){ chamAb[e.target.id==='chCont'?'cont':'obs']=e.target.value; chamAb.dmudou=true; } });
     box.addEventListener('change',function(e){ if(e.target.hasAttribute&&e.target.hasAttribute('data-gfoto')){ gabFoto(e.target); return; } if(e.target.id==='qhPer'){ var mq=atual(); if(mq) quadroCarrega(mq,e.target.value); return; } if(e.target.id==='rkDias'){ var mr=atual(); if(mr) rkCarrega(mr,+e.target.value); return; } if(e.target.id==='xQLim'){ var mx=atual(), lv=+e.target.value; rpc('escola_opcoes_salvar',{p_escola:mx.escola.id,p:{queda_limite:lv}}).then(function(){ aviso('Salvo: aviso a partir de '+String(lv).replace('.',',')+' ponto'); xLimpa(); desenhar(); },function(er){ aviso(novErro(er)); }); return; } if(e.target.id==='qhNT'||e.target.id==='qhNC'){ var mq2=atual(), vq=+e.target.value; rpc('quadro_config',{p_escola:mq2.escola.id,p_on:null,p_turma:e.target.id==='qhNT'?vq:null,p_colegio:e.target.id==='qhNC'?vq:null}).then(function(){ aviso('Salvo: '+vq+' primeiros '+(e.target.id==='qhNT'?'de cada turma':'do colégio')); quadros={}; desenhar(); },function(er){ aviso(novErro(er)); }); return; } if(chamAb&&/^ch(Mat|Dia|Aula)$/.test(e.target.id)){ var cv=e.target.value.trim();
         if(e.target.id==='chMat'&&(!cv||cv===chamAb.materia)) return;
