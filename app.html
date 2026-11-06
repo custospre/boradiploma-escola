@@ -1438,6 +1438,7 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
   var ACESSOS=[
     {p:'aluno', t:'🎒 Acesso Aluno', g:[['',[
       ['📢 Avisos da escola','Avisos da coordenação; chega aviso no celular.','p:📢 Avisos'],
+      ['📅 Agenda da turma','Provas, trabalhos, aulas e eventos marcados pela escola.','p:📅 Agenda'],
       ['📒 Minhas notas','Notas oficiais de cada matéria.','p:📒'],
       ['✅ Minha frequência','Presenças e faltas de cada aula.','p:✅'],
       ['📝 Tarefas','Tarefas com prazo; entrega pelo app (texto, foto ou arquivo).','p:📝 Tarefas'],
@@ -1452,7 +1453,8 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
       ['🏆 Gincana Rumo ao ENEM','Responde a gincana ao vivo, pelo celular, na escola.','p:🏆 Ginc'],
       ['🛟 Disque-denúncia','Relato para a escola, com opção de anônimo.','p:🛟']]]]},
     {p:'responsavel', t:'👨‍👩‍👧 Acesso Pais', g:[['',[
-      ['📅 Provas e prazos','Provas, tarefas e prazos do filho.','p:📅'],
+      ['📅 Agenda da turma','Provas, trabalhos, aulas e eventos marcados pela escola.','p:📅 Agenda'],
+      ['📅 Provas e prazos','Provas e trabalhos que o filho anotou no app dele.','p:📅 Provas'],
       ['📒 Notas','Notas oficiais do filho.','p:📒'],
       ['✅ Frequência','Presenças e faltas do filho.','p:✅'],
       ['📊 Simulados','Acertos do filho nos simulados.','p:📊'],
@@ -1468,6 +1470,7 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
     {p:'professor', t:'🧑‍🏫 Acesso Professor', g:[
       ['📚 Turmas e aulas',[
         ['📚 Minhas turmas','Turmas em que dá aula, com os alunos.','p:📚 Minhas|p:📚 1|p:📚 2|p:📚 3'],
+        ['📅 Agenda das turmas','Marca provas, trabalhos, aulas e recuperação; alunos e pais são avisados.','k:xagenda'],
         ['🗓 Chamada e notas','Faz a chamada e lança as notas da matéria.','p:🏷️|p:🗓'],
         ['📋 Planos semanais','Planejamento da semana; a coordenação dá o visto.','k:planos'],
         ['🚸 Risco de evasão','Alunos das suas turmas com sinais de afastamento.','k:xevasao'],
@@ -1500,6 +1503,7 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
         ['🚪 Portaria · Estou chegando','Avisos de pais chegando para buscar.','k:xport'],
         ['🛟 Disque-denúncia','Relatos de alunos e pais.','k:rels']]],
       ['📚 Pedagógico',[
+        ['📅 Agenda das turmas','Provas, trabalhos, aulas e eventos de todas as turmas.','k:xagenda'],
         ['📚 Material das turmas','Material enviado às turmas.','k:mats'],
         ['📝 Tarefas e entregas','Tarefas com prazo e as entregas dos alunos.','k:tarefas'],
         ['✍️ Redações','Temas de redação e correções.','k:reds'],
@@ -6205,6 +6209,9 @@ if ('serviceWorker' in navigator) {
 .escctit{display:flex;flex-direction:column;min-width:0}
 .escctit b{font-family:var(--font-head);font-size:1.02rem}
 .escctit small{color:var(--muted);font-family:var(--font-head);font-size:.78rem}
+.aglista{display:flex;flex-direction:column;gap:6px;margin-top:6px}.agdia{font-weight:700;font-size:.86rem;margin-top:6px;color:var(--accent)}.agdia span{font-weight:400;color:var(--muted)}.agdia.perto span{color:#c62828;font-weight:700}
+.agit{display:flex;justify-content:space-between;gap:8px;border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:10px;padding:7px 10px;background:var(--surface)}.agit small{display:block;margin-top:2px}
+.agit.agprova{border-left-color:#e53935}.agit.agtrabalho{border-left-color:#fb8c00}.agit.agrecuperacao{border-left-color:#8e24aa}.agit.agsimulado{border-left-color:#1e88e5}.agit.agevento{border-left-color:#43a047}.agx{flex:none;align-self:flex-start;padding:2px 8px}
 .evres{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;margin:4px 2px 10px;font-size:.88rem}.evres b{flex-basis:100%}
 .evlista{display:flex;flex-direction:column;gap:8px}.evit{border:1px solid var(--line);border-left:4px solid #f2c94c;border-radius:10px;padding:8px 10px;background:var(--surface)}
 .evit.evalto{border-left-color:#e53935}.evit.evmedio{border-left-color:#fb8c00}.evtop{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}.evtop small{color:var(--muted)}
@@ -8611,12 +8618,12 @@ if ('serviceWorker' in navigator) {
   // 06/11 (2): linha direta pais↔professor, autorizações digitais, Estou chegando (portaria),
   // grade de horários, ocorrências e queda de rendimento (SQL: seção 9 de novidades-escola.sql)
   // =====================================================================
-  var X={opc:{},ld:{},autz:{},cheg:{},grade:{},ocorr:{},queda:{},fale:{}}, ldTimer=null, faleTimer=null;
+  var X={opc:{},ld:{},autz:{},cheg:{},grade:{},ocorr:{},queda:{},fale:{},agenda:{}}, ldTimer=null, faleTimer=null;
   function xCarrega(k,id,fn,args){ if(X[k][id]) return X[k][id]; X[k][id]={carregando:true};
     rpc(fn,args).then(function(d){ X[k][id]={d:d}; },function(e){ X[k][id]={erro:novErro(e)}; }).then(function(){ if(!ocupado()) desenhar(); else if(novAb&&novAb.tipo==='grade'&&k==='grade') desenharGrade(); });
     return X[k][id]; }
   function xOk(c){ return c&&!c.carregando&&!c.erro; }
-  function xLimpa(){ X={opc:{},ld:{},autz:{},cheg:{},grade:{},ocorr:{},queda:{},fale:{}}; }
+  function xLimpa(){ X={opc:{},ld:{},autz:{},cheg:{},grade:{},ocorr:{},queda:{},fale:{},agenda:{}}; }
   function opc(m){ var c=xCarrega('opc',m.escola.id,'escola_opcoes',{p_escola:m.escola.id}); return xOk(c)?(c.d||{}):{}; }
   function dmh(iso){ var d=new Date(iso); return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); }
 
@@ -8830,6 +8837,47 @@ if ('serviceWorker' in navigator) {
   function faleEnviar(){ var a=novAb, t=box.querySelector('#fvResp'); if(!a||!t||!t.value.trim()) return; var v=t.value; t.value='';
     rpc('conv_enviar',{p_conv:a.id,p_texto:v}).then(function(){ faleBusca(true); },function(e){ t.value=v; aviso(novErro(e)); }); }
 
+  // ---------- 📅 agenda da turma (professor e coordenação marcam; alunos e pais veem) ----------
+  var AGT={prova:'📝 Prova',trabalho:'📚 Trabalho',aula:'🧑‍🏫 Aula',recuperacao:'🔁 Recuperação',simulado:'🎯 Simulado',evento:'🎉 Evento'}, agTur='';
+  function agendaHTML(m,equipe){ var c=xCarrega('agenda',m.escola.id,'agenda_turma_lista',{p_escola:m.escola.id});
+    var h=equipe?'':'<h2 class="esch2">📅 Agenda da turma</h2>';
+    if(equipe) h+='<button type="button" class="escbtn2 escadd" data-ea="agnova">＋ Marcar prova, trabalho ou aula</button>';
+    if(!xOk(c)) return h+'<div class="escdim" style="padding:4px 2px">'+(c&&c.erro?'⚠️ '+E(/agenda_turma|ativada no servidor/.test(c.erro)?'Falta rodar no Supabase o SQL agenda-turma.sql.':c.erro):'Carregando…')+'</div>';
+    var hoje=hojeISO(), l=(c.d||[]).filter(function(x){ return x.data>=hoje; });
+    var tur={}; l.forEach(function(x){ tur[x.turma_id]=x.turma; });
+    if(equipe&&Object.keys(tur).length>1) h+='<div class="escnotf">'+campo('Turma','<select id="agTur"><option value="">Todas as turmas</option>'+Object.keys(tur).sort(function(a,b){ return String(tur[a]).localeCompare(tur[b]); }).map(function(k){ return '<option value="'+E(k)+'"'+(k===agTur?' selected':'')+'>'+E(tur[k])+'</option>'; }).join('')+'</select>')+'</div>';
+    if(equipe&&agTur) l=l.filter(function(x){ return x.turma_id===agTur; });
+    if(!l.length) return h+'<div class="escdim" style="padding:4px 2px">Nada marcado daqui para frente.</div>';
+    var DS=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'], ult='', r='<div class="aglista">';
+    l.forEach(function(x){ if(x.data!==ult){ ult=x.data; var p=x.data.split('-'), dt=new Date(+p[0],+p[1]-1,+p[2]), du=diasAte(x.data);
+        r+='<div class="agdia'+(du<=2?' perto':'')+'">'+DS[dt.getDay()]+', '+p[2]+'/'+p[1]+' <span>· '+quando(du)+'</span></div>'; }
+      r+='<div class="agit ag'+E(x.tipo)+'"><div><b>'+(AGT[x.tipo]||x.tipo)+(x.materia?' de '+E(x.materia):'')+'</b>'+(x.hora?' <span class="escdim">· '+E(x.hora)+'</span>':'')
+        +'<div>'+E(x.titulo)+'</div>'+(x.descricao?'<small>'+E(x.descricao)+'</small>':'')
+        +(equipe?'<small class="escdim">'+E(x.turma)+' · marcado por '+E(x.autor||'')+'</small>':'')+'</div>'
+        +(equipe&&x.pode_excluir?'<button type="button" class="escbtn2 agx" data-ea="agexc" data-id="'+x.id+'" title="Tirar da agenda">🗑</button>':'')+'</div>'; });
+    return h+r+'</div>'; }
+  function agendaConta(m){ var c=X.agenda[m.escola.id]; if(!xOk(c)) return 'provas, trabalhos e aulas'; var h=hojeISO(), n=(c.d||[]).filter(function(x){ return x.data>=h&&diasAte(x.data)<=7; }).length; return n?'<b class="escnovas">'+n+' nos próximos 7 dias</b>':'provas, trabalhos e aulas'; }
+  function agendaNova(){ var m=atual(), tur=(m.turmas||[]).filter(function(t){ return t.id; }); if(!tur.length){ aviso('Nenhuma turma.'); return; }
+    var ehProf=m.papel==='professor';
+    var d=janela('📅 Marcar na agenda da turma',
+      (tur.length>1?'<div class="escf"><span>Turmas <small>(marque uma ou mais)</small></span><div class="efturmas">'+tur.map(function(t,i){ return '<label class="escchk"><input type="checkbox" name="agT" value="'+E(t.id)+'"'+(i===0?' checked':'')+'> '+E(t.nome+(t.turno?' · '+t.turno:''))+'</label>'; }).join('')+'</div></div>'
+        :'<input type="hidden" name="agT" value="'+E(tur[0].id)+'" data-um="1">'+campo('Turma','<input value="'+E(tur[0].nome)+'" readonly>'))
+      +campo('O que é','<select id="agTipo">'+opts(Object.keys(AGT).map(function(k){ return [k,AGT[k]]; }),'prova')+'</select>')
+      +campo('Matéria <small>(opcional)</small>','<input id="agMat" maxlength="60" value="'+E(ehProf?(m.materia||''):'')+'" placeholder="Ex.: Matemática" autocomplete="off">')
+      +campo('Título','<input id="agTit" maxlength="140" placeholder="Ex.: Prova do 2º bimestre – capítulos 4 e 5" autocomplete="off">')
+      +'<div class="eschora"><label>Data <input type="date" id="agData" min="'+hojeISO()+'"></label><label>Hora <small>(opcional)</small> <input type="time" id="agHora"></label></div>'
+      +campo('Detalhes <small>(opcional)</small>','<textarea id="agDesc" rows="3" maxlength="2000" placeholder="Ex.: Trazer calculadora. Conteúdo: funções do 1º grau."></textarea>')
+      +'<p class="escdim" style="font-size:.8rem">Alunos e pais da turma recebem aviso agora e um lembrete na véspera, às 18h.</p>',
+      '<button type="button" class="escbtn" data-ok>📅 Marcar</button><button type="button" class="escbtn2" data-x>Cancelar</button>');
+    d.querySelector('.escmbox').classList.add('escmlarga');
+    ligar(d,function(){ var ts=[].slice.call(d.querySelectorAll('input[name="agT"]')).filter(function(x){ return x.getAttribute('data-um')||x.checked; }).map(function(x){ return x.value; });
+      if(!ts.length) return Promise.reject(new Error('Marque pelo menos uma turma.'));
+      var v=function(q){ return d.querySelector(q).value; };
+      if(!v('#agTit').trim()) return Promise.reject(new Error('Escreva o título.'));
+      if(!v('#agData')) return Promise.reject(new Error('Escolha a data.'));
+      return rpc('agenda_turma_salvar',{p_escola:m.escola.id,p_turmas:ts,p_tipo:v('#agTipo'),p_materia:v('#agMat'),p_titulo:v('#agTit'),p_descricao:v('#agDesc'),p_data:v('#agData'),p_hora:v('#agHora')||null})
+        .then(function(n){ aberto.xagenda=true; xLimpa(); setTimeout(function(){ aviso('Marcado na agenda'+(n>1?' de '+n+' turmas':'')+' · alunos e pais avisados'); },700); },function(er){ throw new Error(novErro(er)); }); }); }
+
   // ---------- 🚸 risco de evasão (coordenação e professor) ----------
   var evas={}, evDias=30, evBaixo=false;
   function evasaoHTML(m){ var k=m.escola.id+':'+evDias, c=evas[k];
@@ -8861,9 +8909,10 @@ if ('serviceWorker' in navigator) {
   function evasaoConta(m){ var c=evas[m.escola.id+':'+evDias]; if(!c||!c.d) return ''; var n=(c.d.lista||[]).filter(function(x){ return x.nivel==='alto'; }).length; return n?'<b class="escnovas">'+n+' com risco alto</b>':'faltas, acesso, notas e tarefas'; }
 
   // ---------- encaixe nas telas ----------
-  function extAluno(m){ return faleHTML(m)+gradeAlunoHTML(m)+ocorrHTML(m,'📋 Ocorrências'); }
-  function extResp(m){ return quedaHTML(m,true)+chegadaPaisHTML(m)+autzHTML(m)+ldHTML(m)+faleHTML(m)+gradeAlunoHTML(m)+ocorrHTML(m,'📋 Ocorrências'); }
+  function extAluno(m){ return agendaHTML(m,false)+faleHTML(m)+gradeAlunoHTML(m)+ocorrHTML(m,'📋 Ocorrências'); }
+  function extResp(m){ return agendaHTML(m,false)+quedaHTML(m,true)+chegadaPaisHTML(m)+autzHTML(m)+ldHTML(m)+faleHTML(m)+gradeAlunoHTML(m)+ocorrHTML(m,'📋 Ocorrências'); }
   function extProf(m){ var h=ldHTML(m)+faleHTML(m);
+    h+=secao('xagenda','📅 Agenda das turmas',agendaConta(m),agendaHTML(m,true));
     h+=secao('ginc','🏆 Gincana Rumo ao ENEM','ao vivo na escola',gincListaHTML(m));
     h+=secao('xautz','✍️ Autorizações','passeios e saídas',autzHTML(m));
     h+=secao('xocorr','📋 Ocorrências','elogios, observações e advertências',ocorrHTML(m,''));
@@ -8873,6 +8922,7 @@ if ('serviceWorker' in navigator) {
   function extCoord(m){ var o=opc(m), h='';
     h+=secao('ginc','🏆 Gincana Rumo ao ENEM','ao vivo na escola',gincListaHTML(m));
     h+=secao('xopc','⚙️ Opções da escola','linha direta, chegada e avisos',opcoesHTML(m));
+    h+=secao('xagenda','📅 Agenda das turmas',agendaConta(m),agendaHTML(m,true));
     if(o.estou_chegando){ var cc=X.cheg[m.escola.id], np=xOk(cc)?(cc.d||[]).filter(function(x){ return !x.entregue_em; }).length:0; h+=secao('xport','🚪 Portaria · Estou chegando',np?'<b class="escnovas">'+np+' a caminho</b>':'avisos de hoje',portariaHTML(m)); }
     h+=secao('xautz','✍️ Autorizações','passeios e saídas',autzHTML(m));
     h+=secao('xocorr','📋 Ocorrências','elogios, observações e advertências',ocorrHTML(m,''));
@@ -8891,6 +8941,8 @@ if ('serviceWorker' in navigator) {
     if(a==='ldabrir'){ var tx=b.querySelector('b'); ldAbrir(b.getAttribute('data-a'),b.getAttribute('data-p'),tx?tx.textContent:''); return true; }
     if(a==='ldnovo'){ ldNovo(); return true; }
     if(a==='falenova'){ faleNova(); return true; }
+    if(a==='agnova'){ agendaNova(); return true; }
+    if(a==='agexc'){ if(!confirm('Tirar este item da agenda da turma?')) return true; rpc('agenda_turma_excluir',{p_id:+id}).then(function(){ aviso('Tirado da agenda'); xLimpa(); desenhar(); },function(e){ aviso(novErro(e)); }); return true; }
     if(a==='evbaixo'){ evBaixo=!evBaixo; desenhar(); return true; }
     if(a==='faleabrir'){ faleAbrir(id); return true; }
     if(a==='faleenviar'){ faleEnviar(); return true; }
@@ -9194,7 +9246,7 @@ if ('serviceWorker' in navigator) {
 
   window.bdEscola={ abrir:function(el,modo){ if(!focoNovo) foco=null; focoNovo=false; modoRel=modo==='rel'; if(box!==el){ box=el; box.addEventListener('click',clique);
     box.addEventListener('input',function(e){ if(chamAb&&(e.target.id==='chCont'||e.target.id==='chObs')){ chamAb[e.target.id==='chCont'?'cont':'obs']=e.target.value; chamAb.dmudou=true; } });
-    box.addEventListener('change',function(e){ if(e.target.hasAttribute&&e.target.hasAttribute('data-gfoto')){ gabFoto(e.target); return; } if(e.target.id==='qhPer'){ var mq=atual(); if(mq) quadroCarrega(mq,e.target.value); return; } if(e.target.id==='rkDias'){ var mr=atual(); if(mr) rkCarrega(mr,+e.target.value); return; } if(e.target.id==='evDias'){ evDias=+e.target.value||30; desenhar(); return; } if(e.target.id==='xCIni'||e.target.id==='xCFim'){ var mh=atual(), ini=box.querySelector('#xCIni').value, fim=box.querySelector('#xCFim').value; if(!ini||!fim) return; if(fim<=ini){ aviso('O fim precisa ser depois do início.'); return; }
+    box.addEventListener('change',function(e){ if(e.target.hasAttribute&&e.target.hasAttribute('data-gfoto')){ gabFoto(e.target); return; } if(e.target.id==='qhPer'){ var mq=atual(); if(mq) quadroCarrega(mq,e.target.value); return; } if(e.target.id==='rkDias'){ var mr=atual(); if(mr) rkCarrega(mr,+e.target.value); return; } if(e.target.id==='agTur'){ agTur=e.target.value; desenhar(); return; } if(e.target.id==='evDias'){ evDias=+e.target.value||30; desenhar(); return; } if(e.target.id==='xCIni'||e.target.id==='xCFim'){ var mh=atual(), ini=box.querySelector('#xCIni').value, fim=box.querySelector('#xCFim').value; if(!ini||!fim) return; if(fim<=ini){ aviso('O fim precisa ser depois do início.'); return; }
       rpc('escola_opcoes_salvar',{p_escola:mh.escola.id,p:{conversa_ini:ini,conversa_fim:fim}}).then(function(){ aviso('Salvo: conversas das '+hTxt(ini)+' às '+hTxt(fim)); xLimpa(); desenhar(); },function(er){ aviso(novErro(er)); }); return; }
     if(e.target.id==='xQLim'){ var mx=atual(), lv=+e.target.value; rpc('escola_opcoes_salvar',{p_escola:mx.escola.id,p:{queda_limite:lv}}).then(function(){ aviso('Salvo: aviso a partir de '+String(lv).replace('.',',')+' ponto'); xLimpa(); desenhar(); },function(er){ aviso(novErro(er)); }); return; } if(e.target.id==='qhNT'||e.target.id==='qhNC'){ var mq2=atual(), vq=+e.target.value; rpc('quadro_config',{p_escola:mq2.escola.id,p_on:null,p_turma:e.target.id==='qhNT'?vq:null,p_colegio:e.target.id==='qhNC'?vq:null}).then(function(){ aviso('Salvo: '+vq+' primeiros '+(e.target.id==='qhNT'?'de cada turma':'do colégio')); quadros={}; desenhar(); },function(er){ aviso(novErro(er)); }); return; } if(chamAb&&/^ch(Mat|Dia|Aula)$/.test(e.target.id)){ var cv=e.target.value.trim();
         if(e.target.id==='chMat'&&(!cv||cv===chamAb.materia)) return;
