@@ -6546,6 +6546,25 @@ if ('serviceWorker' in navigator) {
   }
   // título em sanfona (abre e fecha como a árvore do app); fica lembrado enquanto o app está aberto
   function secao(k,tit,cont,html){ return '<div class="escgrp escsec'+(aberto[k]?' open':'')+'"><button type="button" class="escgh" data-ea="tog" data-k="'+k+'"><span class="esccar">▶</span>'+tit+'<span class="esccount">'+cont+'</span></button><div class="escgb">'+html+'</div></div>'; }
+  // item 20 (sanfona em tudo): cada bloco "<h2 class=esch2>Título</h2>…" vira sanfona (recolhe/abre),
+  // sem mexer nas seções que já são sanfona (escgrp). Reaproveita secao() e o handler 'tog'. Abre sozinho se tiver novidade/prazo perto.
+  function sfSlug(t){ return 'sf_'+(String(t).replace(/<[^>]*>/g,'').replace(/[^0-9A-Za-zÀ-ÿ]+/g,'').slice(0,28)||'sec'); }
+  function sanfonarBlocos(html){
+    var re=/<h2 class="esch2">|<div class="escgrp[ "]/g, pos=[], mm;
+    while((mm=re.exec(html))) pos.push(mm.index);
+    if(!pos.length) return html;
+    pos.push(html.length);
+    var out=html.slice(0,pos[0]);
+    for(var i=0;i<pos.length-1;i++){
+      var seg=html.slice(pos[i],pos[i+1]);
+      var hm=seg.indexOf('<h2 class="esch2">')===0 ? seg.match(/^<h2 class="esch2">([\s\S]*?)<\/h2>/) : null;
+      if(hm){ var tit=hm[1], body=seg.slice(hm[0].length), k=sfSlug(tit);
+        if(aberto[k]===undefined && /escnovas|escpz perto/.test(body)) aberto[k]=true;
+        out+=secao(k,tit,'',body);
+      } else out+=seg;
+    }
+    return out;
+  }
   function telaCoord(m){
     var tur=m.turmas||[], mem=m.membros||[];
     function de(p){ return mem.filter(function(x){ return x.papel===p; }); }
@@ -6607,7 +6626,7 @@ if ('serviceWorker' in navigator) {
     var t=m.turma, h='<div class="esccard"><h3>🎒 Minha turma: '+(t?E(t.nome)+(t.turno?' · '+E(t.turno):''):'ainda sem turma')+'</h3>';
     h+='<p class="escdim">Colegas ('+(m.colegas||[]).length+')</p>'+tags(m.colegas);
     h+='<p class="escdim" style="margin-top:10px">Professores</p><ul class="esclist">'+((m.professores||[]).map(function(p){ return '<li>'+E(p.nome)+(p.materia?' <span class="escdim">· '+E(p.materia)+'</span>':'')+'</li>'; }).join('')||'<li class="escdim">nenhum ainda</li>')+'</ul></div>';
-    return h+avisosHTML(m)+tarefasHTML(m)+aulasHTML(m)+redacoesHTML(m)+quadroHTML(m)+extAluno(m)+minhasNotasHTML(m)+minhaFreqHTML(m)+simHTML(m)+tutorHTML()+matsHTML(m)+diarioBotao(m)+gruposHTML(m,'turma')+relatosHTML(m)+comoFuncionaHTML('aluno')+segAparelhoHTML();
+    return sanfonarBlocos(h+avisosHTML(m)+tarefasHTML(m)+aulasHTML(m)+redacoesHTML(m)+quadroHTML(m)+extAluno(m)+minhasNotasHTML(m)+minhaFreqHTML(m)+simHTML(m)+tutorHTML()+matsHTML(m)+diarioBotao(m)+gruposHTML(m,'turma')+relatosHTML(m)+comoFuncionaHTML('aluno')+segAparelhoHTML());
   }
   // ---------- pais: provas, trabalhos e agenda da escola do filho (o que ele anota no app dele) ----------
   var filhoRes={};
@@ -6648,7 +6667,7 @@ if ('serviceWorker' in navigator) {
       h+='<div class="esccard"><h3>👨‍👩‍👧 Pais da turma</h3><ul class="esclist">'+(m.pais_turma.map(function(p){ return '<li>'+E(p.nome)+' <span class="escdim">· '+E(p.parentesco||'responsável')+' de '+E(primeiro(p.filho))+'</span></li>'; }).join('')||'<li class="escdim">nenhum outro ainda</li>')+'</ul></div>';
       h+=gruposHTML(m,'pais');
     }
-    return h+notasFilhoHTML2(m)+freqFilhoHTML(m)+notasFilhoHTML(m)+relatosHTML(m)+comoFuncionaHTML('responsavel')+segAparelhoHTML()+(it.length?embreve(it):'');
+    return sanfonarBlocos(h+notasFilhoHTML2(m)+freqFilhoHTML(m)+notasFilhoHTML(m)+relatosHTML(m)+comoFuncionaHTML('responsavel')+segAparelhoHTML()+(it.length?embreve(it):''));
   }
   function telaProf(m){
     var h='';
@@ -6656,7 +6675,7 @@ if ('serviceWorker' in navigator) {
       +(t.id?'<div class="escacts" style="margin-top:10px"><button type="button" class="escbtn2" data-ea="matnovo" data-t="'+t.id+'">📎 Enviar material para esta turma</button><button type="button" class="escbtn" data-ea="chamada" data-t="'+t.id+'">✅ Fazer chamada</button><button type="button" class="escbtn2" data-ea="notas" data-t="'+t.id+'">📝 Lançar notas</button></div>'+novBotoesTurma(t.id)+'<div class="escacts" style="margin-top:6px">'+libBotao(t.id)+'</div>':'')+'</div>'; });
     if(!h) h='<div class="escvazio">A coordenação ainda não ligou você a nenhuma turma.</div>';
     h=pendentesHTML(m)+h;
-    return h+novSecoesEquipe(m)+simProfHTML(m)+matsHTML(m,true)+gruposHTML(m,'turma')+comoFuncionaHTML('professor')+segAparelhoHTML();
+    return sanfonarBlocos(h+novSecoesEquipe(m)+simProfHTML(m)+matsHTML(m,true)+gruposHTML(m,'turma')+comoFuncionaHTML('professor')+segAparelhoHTML());
   }
 
   // ---------- grupos (lista) ----------
