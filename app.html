@@ -6199,6 +6199,7 @@ if ('serviceWorker' in navigator) {
 .escctit{display:flex;flex-direction:column;min-width:0}
 .escctit b{font-family:var(--font-head);font-size:1.02rem}
 .escctit small{color:var(--muted);font-family:var(--font-head);font-size:.78rem}
+.eschora{display:flex;gap:14px;flex-wrap:wrap;margin:6px 0 8px}.eschora input{margin-left:6px;padding:4px 6px}
 .escregras{font-size:.8rem;color:var(--muted);background:var(--accent-soft);border-radius:8px;padding:6px 10px;margin-bottom:8px;font-family:var(--font-head)}
 .escmsgs{flex:1;overflow-y:auto;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 10px 4px;overscroll-behavior:contain}
 .escdia{text-align:center;margin:10px 0 6px}
@@ -6680,7 +6681,7 @@ if ('serviceWorker' in navigator) {
     chat={t:t,g:gr,msgs:[],ultimo:0,info:null,n:0};
     box.innerHTML='<div class="escchat"><div class="escchead"><button type="button" class="escbtn2" data-ea="sair">← Voltar</button>'
       +'<div class="escctit"><b>'+(gr==='pais'?'👨‍👩‍👧 ':'💬 ')+E(tituloGrupo(g.turma,gr))+'</b><small>'+E(g.escola||'')+'</small></div></div>'
-      +'<div class="escregras">🤝 Respeito sempre. Palavrões são bloqueados e a escola pode ler, apagar e pausar mensagens.</div>'
+      +'<div class="escregras">🤝 Respeito sempre. Palavrões são bloqueados e a escola pode ler, apagar e pausar mensagens.'+(function(){ var hc=horaConversa(atual()); return hc?'<br>'+E(hc.txt)+'.'+(hc.aberta?'':' <b>Agora está fora do horário'+((atual()||{}).papel==='coordenacao'?' (a coordenação pode escrever).':'.')+'</b>'):''; })()+'</div>'
       +'<div class="escmsgs" id="escMsgs"><div class="escvazio">Carregando…</div></div>'
       +'<div class="escpausa" id="escPausa" hidden></div>'
       +'<div class="escenvio"><textarea id="escTxt" rows="1" maxlength="1000" placeholder="Escreva uma mensagem" spellcheck="true" lang="pt-BR" autocapitalize="sentences"></textarea><button type="button" class="escbtn" data-ea="enviar">Enviar</button></div>'
@@ -8609,6 +8610,9 @@ if ('serviceWorker' in navigator) {
   function opc(m){ var c=xCarrega('opc',m.escola.id,'escola_opcoes',{p_escola:m.escola.id}); return xOk(c)?(c.d||{}):{}; }
   function dmh(iso){ var d=new Date(iso); return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); }
 
+  function hTxt(v){ var p=String(v||'').split(':'); var h=+p[0], mi=+p[1]||0; return isNaN(h)?'':(h+'h'+(mi?String(mi).padStart(2,'0'):'')); }
+  function horaConversa(m){ var o=m&&m.escola?opc(m):{}; if(!o||!o.conversa_ini) return null;
+    return {txt:'🕒 Conversas das '+hTxt(o.conversa_ini)+' às '+hTxt(o.conversa_fim)+(o.conversa_fds?', todos os dias':', de segunda a sexta'), aberta:o.conversa_aberta!==false}; }
   // ---------- opções da coordenação ----------
   function opcoesHTML(m){ var o=opc(m), c=X.opc[m.escola.id];
     if(!xOk(c)) return '<div class="escdim">'+(c&&c.erro?'⚠️ '+E(c.erro):'Carregando…')+'</div>';
@@ -8617,6 +8621,10 @@ if ('serviceWorker' in navigator) {
       +sw('estou_chegando','🚗 Estou chegando (portaria)','O responsável avisa que está chegando para buscar o aluno; a coordenação/portaria recebe o aviso e confirma a saída.')
       +sw('queda_prof','📉 Queda de rendimento para os professores','Quando a média do aluno cai, o professor da turma recebe aviso.')
       +sw('queda_pais','📉 Queda de rendimento para os pais','Quando a média do filho cai, os responsáveis recebem aviso.')
+      +'<div class="esccard escgp" style="display:block"><h3>🕒 Horário das conversas</h3><p>Pais, alunos e professores só trocam mensagens (linha direta e grupos) neste horário. Fora dele, o app não deixa enviar e os avisos no celular não chegam. A coordenação pode escrever a qualquer hora.</p>'
+      +(o.conversa_ini?'<div class="eschora"><label>Das <input type="time" id="xCIni" value="'+E(o.conversa_ini)+'"></label><label>às <input type="time" id="xCFim" value="'+E(o.conversa_fim)+'"></label></div>'
+        +'<label class="escchk"><input type="checkbox" data-ea="xopc" data-k="conversa_fds"'+(o.conversa_fds?' checked':'')+'> Liberar também no sábado e no domingo</label>'
+        :'<p class="escdim">⚠️ Falta rodar no Supabase o SQL horario-conversas.sql.</p>')+'</div>'
       +'<div class="escnotf">'+campo('Avisar queda a partir de','<select id="xQLim">'+opts([['0.5','0,5 ponto'],['1','1 ponto'],['1.5','1,5 ponto'],['2','2 pontos']],String(+o.queda_limite||1))+'</select>')+'</div>';
   }
 
@@ -8642,7 +8650,7 @@ if ('serviceWorker' in navigator) {
     else { var ult='';
       h='<div class="escmsgs ldmsgs">'+(a.d.msgs.length?a.d.msgs.map(function(x){ var d=dia(x.em), cab=d!==ult?'<div class="escdia"><span>'+d+'</span></div>':''; ult=d; var minha=x.papel===a.d.lado;
         return cab+'<div class="escmsg'+(minha?' minha':'')+'"><div class="escmb">'+(minha?'':'<b>'+E(x.autor)+'</b><br>')+linkify(x.texto)+'<small> '+hhmm(x.em)+(minha&&x.lida?' ✓✓':'')+'</small></div></div>'; }).join(''):'<div class="escvazio">Nenhuma mensagem ainda. Escreva a primeira! 👋</div>')+'</div>'
-        +(a.d.lado==='coordenacao'?'<p class="escdim">Você está vendo como coordenação (só leitura).</p>':'<div class="escenvio"><textarea id="ldTx" rows="2" maxlength="2000" placeholder="Escreva a mensagem…"></textarea><button type="button" class="escbtn" data-ea="ldenviar">Enviar</button></div><p class="escdim" style="font-size:.78rem">Respeito sempre. A coordenação da escola pode ler esta conversa. Avisos no celular não chegam entre 22h e 6h.</p>');
+        +(a.d.lado==='coordenacao'?'<p class="escdim">Você está vendo como coordenação (só leitura).</p>':'<div class="escenvio"><textarea id="ldTx" rows="2" maxlength="2000" placeholder="Escreva a mensagem…"></textarea><button type="button" class="escbtn" data-ea="ldenviar">Enviar</button></div><p class="escdim" style="font-size:.78rem">Respeito sempre. A coordenação da escola pode ler esta conversa. '+(function(){ var hc=horaConversa(atual()); return hc?E(hc.txt)+'.'+(hc.aberta?'':' <b>Agora está fora do horário.</b>'):'Avisos no celular não chegam entre 22h e 6h.'; })()+'</p>');
     }
     var tx=box.querySelector('#ldTx'), rasc=tx?tx.value:'';
     box.innerHTML=telaNova('💬 '+E(a.tit),'Linha direta',h);
@@ -9088,7 +9096,9 @@ if ('serviceWorker' in navigator) {
 
   window.bdEscola={ abrir:function(el,modo){ if(!focoNovo) foco=null; focoNovo=false; modoRel=modo==='rel'; if(box!==el){ box=el; box.addEventListener('click',clique);
     box.addEventListener('input',function(e){ if(chamAb&&(e.target.id==='chCont'||e.target.id==='chObs')){ chamAb[e.target.id==='chCont'?'cont':'obs']=e.target.value; chamAb.dmudou=true; } });
-    box.addEventListener('change',function(e){ if(e.target.hasAttribute&&e.target.hasAttribute('data-gfoto')){ gabFoto(e.target); return; } if(e.target.id==='qhPer'){ var mq=atual(); if(mq) quadroCarrega(mq,e.target.value); return; } if(e.target.id==='rkDias'){ var mr=atual(); if(mr) rkCarrega(mr,+e.target.value); return; } if(e.target.id==='xQLim'){ var mx=atual(), lv=+e.target.value; rpc('escola_opcoes_salvar',{p_escola:mx.escola.id,p:{queda_limite:lv}}).then(function(){ aviso('Salvo: aviso a partir de '+String(lv).replace('.',',')+' ponto'); xLimpa(); desenhar(); },function(er){ aviso(novErro(er)); }); return; } if(e.target.id==='qhNT'||e.target.id==='qhNC'){ var mq2=atual(), vq=+e.target.value; rpc('quadro_config',{p_escola:mq2.escola.id,p_on:null,p_turma:e.target.id==='qhNT'?vq:null,p_colegio:e.target.id==='qhNC'?vq:null}).then(function(){ aviso('Salvo: '+vq+' primeiros '+(e.target.id==='qhNT'?'de cada turma':'do colégio')); quadros={}; desenhar(); },function(er){ aviso(novErro(er)); }); return; } if(chamAb&&/^ch(Mat|Dia|Aula)$/.test(e.target.id)){ var cv=e.target.value.trim();
+    box.addEventListener('change',function(e){ if(e.target.hasAttribute&&e.target.hasAttribute('data-gfoto')){ gabFoto(e.target); return; } if(e.target.id==='qhPer'){ var mq=atual(); if(mq) quadroCarrega(mq,e.target.value); return; } if(e.target.id==='rkDias'){ var mr=atual(); if(mr) rkCarrega(mr,+e.target.value); return; } if(e.target.id==='xCIni'||e.target.id==='xCFim'){ var mh=atual(), ini=box.querySelector('#xCIni').value, fim=box.querySelector('#xCFim').value; if(!ini||!fim) return; if(fim<=ini){ aviso('O fim precisa ser depois do início.'); return; }
+      rpc('escola_opcoes_salvar',{p_escola:mh.escola.id,p:{conversa_ini:ini,conversa_fim:fim}}).then(function(){ aviso('Salvo: conversas das '+hTxt(ini)+' às '+hTxt(fim)); xLimpa(); desenhar(); },function(er){ aviso(novErro(er)); }); return; }
+    if(e.target.id==='xQLim'){ var mx=atual(), lv=+e.target.value; rpc('escola_opcoes_salvar',{p_escola:mx.escola.id,p:{queda_limite:lv}}).then(function(){ aviso('Salvo: aviso a partir de '+String(lv).replace('.',',')+' ponto'); xLimpa(); desenhar(); },function(er){ aviso(novErro(er)); }); return; } if(e.target.id==='qhNT'||e.target.id==='qhNC'){ var mq2=atual(), vq=+e.target.value; rpc('quadro_config',{p_escola:mq2.escola.id,p_on:null,p_turma:e.target.id==='qhNT'?vq:null,p_colegio:e.target.id==='qhNC'?vq:null}).then(function(){ aviso('Salvo: '+vq+' primeiros '+(e.target.id==='qhNT'?'de cada turma':'do colégio')); quadros={}; desenhar(); },function(er){ aviso(novErro(er)); }); return; } if(chamAb&&/^ch(Mat|Dia|Aula)$/.test(e.target.id)){ var cv=e.target.value.trim();
         if(e.target.id==='chMat'&&(!cv||cv===chamAb.materia)) return;
         if(!chamadaMudou()){ desenharChamada(); return; }
         if(e.target.id==='chDia'){ if(!cv) return; if(cv>hojeISO()){ aviso('Esse dia ainda não chegou.'); desenharChamada(); return; } chamAb.data=cv; } else if(e.target.id==='chAula') chamAb.aula=+cv||1; else chamAb.materia=cv;
