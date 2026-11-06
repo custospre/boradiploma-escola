@@ -1470,6 +1470,7 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
         ['📚 Minhas turmas','Turmas em que dá aula, com os alunos.','p:📚 Minhas|p:📚 1|p:📚 2|p:📚 3'],
         ['🗓 Chamada e notas','Faz a chamada e lança as notas da matéria.','p:🏷️|p:🗓'],
         ['📋 Planos semanais','Planejamento da semana; a coordenação dá o visto.','k:planos'],
+        ['🚸 Risco de evasão','Alunos das suas turmas com sinais de afastamento.','k:xevasao'],
         ['🎥 Aulas on-line','Publica aulas de recuperação e aulas virtuais.','k:aulason|p:🎥']]],
       ['📝 Atividades e provas',[
         ['📎 Material e tarefas','Envia para uma ou várias turmas; vê quem entregou e dá nota.','k:tarefas|p:📚 Material'],
@@ -1511,6 +1512,7 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
         ['📈 Relatórios da escola','Por turma, curso, disciplina, idade, notas e uso do app.','k:relat2'],
         ['📊 Simulados da escola','Médias dos simulados por turma e matéria.','k:relat'],
         ['📉 Queda de rendimento','Alunos cuja média caiu nos últimos 30 dias.','k:xqueda'],
+        ['🚸 Risco de evasão','Alunos com sinais de afastamento: faltas, sem acesso, notas e tarefas.','k:xevasao'],
         ['📋 Ocorrências','Elogios, observações e advertências.','k:xocorr'],
         ['✍️ Autorizações','Passeios e saídas autorizados pelos pais.','k:xautz'],
         ['⏳ Chamadas sem liberar','Chamadas que os professores ainda não liberaram.','k:chpend']]],
@@ -6203,6 +6205,10 @@ if ('serviceWorker' in navigator) {
 .escctit{display:flex;flex-direction:column;min-width:0}
 .escctit b{font-family:var(--font-head);font-size:1.02rem}
 .escctit small{color:var(--muted);font-family:var(--font-head);font-size:.78rem}
+.evres{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;margin:4px 2px 10px;font-size:.88rem}.evres b{flex-basis:100%}
+.evlista{display:flex;flex-direction:column;gap:8px}.evit{border:1px solid var(--line);border-left:4px solid #f2c94c;border-radius:10px;padding:8px 10px;background:var(--surface)}
+.evit.evalto{border-left-color:#e53935}.evit.evmedio{border-left-color:#fb8c00}.evtop{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}.evtop small{color:var(--muted)}
+.evmot{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}.evmot span{font-size:.76rem;background:var(--accent-soft);border-radius:999px;padding:2px 8px}
 .eschora{display:flex;gap:14px;flex-wrap:wrap;margin:6px 0 8px}.eschora input{margin-left:6px;padding:4px 6px}
 .escregras{font-size:.8rem;color:var(--muted);background:var(--accent-soft);border-radius:8px;padding:6px 10px;margin-bottom:8px;font-family:var(--font-head)}
 .escmsgs{flex:1;overflow-y:auto;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 10px 4px;overscroll-behavior:contain}
@@ -6463,7 +6469,7 @@ if ('serviceWorker' in navigator) {
     if(!logado()){ box.innerHTML='<div class="escvazio">Entre na sua conta para ver a sua escola.</div>'; return Promise.resolve(); }
     if(!dados.length) box.innerHTML='<div class="escvazio">Carregando…</div>';
     return Promise.all([rpc('escola_painel'), rpc('chat_grupos').catch(function(){ return []; }), rpc('avisos_meus').catch(function(){ return []; }), rpc('materiais_lista').catch(function(){ return null; }), rpc('simulados_meus').catch(function(){ return []; }), rpc('relatos_meus',{p_protocolos:protos()}).catch(function(){ return []; }), rpc('escola_marca').catch(function(){ return null; }), rpc('termos_meus',{p_ver:TERMO_VER}).catch(function(){ return null; }), rpc('redacao_lista').catch(function(){ return []; }), rpc('aulas_online_lista').catch(function(){ return []; }), rpc('esc_minhas_turmas').catch(function(){ return []; })]).then(function(r){
-      reds=Array.isArray(r[8])?r[8]:[]; aulasOn=Array.isArray(r[9])?r[9]:[]; minhasT=Array.isArray(r[10])?r[10]:[]; quadros={}; rkMud={}; xLimpa(); painelR={}; gincs={};
+      reds=Array.isArray(r[8])?r[8]:[]; aulasOn=Array.isArray(r[9])?r[9]:[]; minhasT=Array.isArray(r[10])?r[10]:[]; quadros={}; rkMud={}; xLimpa(); painelR={}; gincs={}; evas={};
       dados=Array.isArray(r[0])?r[0]:[]; try{ mapaPapeis(dados); }catch(_){} grupos=Array.isArray(r[1])?r[1]:[]; avisos=Array.isArray(r[2])?r[2]:[]; if(Array.isArray(r[3])) guardaMats(r[3]); sims=Array.isArray(r[4])?r[4]:[]; relatos=Array.isArray(r[5])?r[5]:[]; if(sel>=dados.length) sel=0;
       if(Array.isArray(r[6])){ marcas=r[6]; aplicarMarca(); }
       termos=Array.isArray(r[7])?r[7]:null;
@@ -8824,6 +8830,36 @@ if ('serviceWorker' in navigator) {
   function faleEnviar(){ var a=novAb, t=box.querySelector('#fvResp'); if(!a||!t||!t.value.trim()) return; var v=t.value; t.value='';
     rpc('conv_enviar',{p_conv:a.id,p_texto:v}).then(function(){ faleBusca(true); },function(e){ t.value=v; aviso(novErro(e)); }); }
 
+  // ---------- 🚸 risco de evasão (coordenação e professor) ----------
+  var evas={}, evDias=30, evBaixo=false;
+  function evasaoHTML(m){ var k=m.escola.id+':'+evDias, c=evas[k];
+    if(!c){ evas[k]={carregando:true}; rpc('evasao_risco',{p_escola:m.escola.id,p_dias:evDias}).then(function(d){ evas[k]={d:d}; },function(e){ evas[k]={erro:novErro(e)}; }).then(function(){ if(!ocupado()) desenhar(); }); c=evas[k]; }
+    var h='<p class="escdim" style="font-size:.84rem;margin:2px 2px 8px">Sinais de que o aluno pode estar se afastando da escola: faltas, dias seguidos faltando, sem entrar no app, média baixa ou caindo, tarefas atrasadas e nenhum estudo no app. Quanto mais sinais, maior o risco. Pais e alunos não veem este relatório.</p>'
+      +'<div class="escnotf">'+campo('Período','<select id="evDias">'+opts([['30','Últimos 30 dias'],['60','Últimos 60 dias'],['90','Últimos 90 dias']],String(evDias))+'</select>')+'</div>';
+    if(c.carregando) return h+'<div class="escdim">Carregando…</div>';
+    if(c.erro) return h+'<div class="escdim">⚠️ '+E(/evasao_risco|ativada no servidor/.test(c.erro)?'Falta rodar no Supabase o SQL evasao-escola.sql.':c.erro)+'</div>';
+    var d=c.d||{}, l=d.lista||[], N={alto:0,medio:0,baixo:0}; l.forEach(function(x){ N[x.nivel]++; });
+    var COR={alto:'🔴',medio:'🟠',baixo:'🟡'}, NOM={alto:'risco alto',medio:'risco médio',baixo:'risco baixo'};
+    function nf1(v){ return String(Math.round(v*10)/10).replace('.',','); }
+    function motivos(x){ var r=[];
+      if(x.pct_faltas>=10) r.push('Faltou '+x.pct_faltas+'% ('+x.faltas+' de '+x.aulas+' aulas)');
+      if(x.seguidas>=3) r.push(x.seguidas+' dias seguidos só com faltas');
+      if(x.nunca_entrou) r.push('Nunca entrou no app');
+      else if(!x.ultimo_acesso) r.push('Sem registro de acesso ao app');
+      else { var dd=Math.floor((Date.now()-new Date(x.ultimo_acesso))/864e5); if(dd>=10) r.push('Sem entrar no app há '+dd+' dias'); }
+      if(x.media!=null&&x.media<6) r.push('Média '+nf1(+x.media));
+      if(x.caiu!=null&&x.caiu>=1) r.push('Média caiu '+nf1(+x.caiu)+' ponto'+(x.caiu>=2?'s':''));
+      if(x.atrasadas>0) r.push(x.atrasadas+' tarefa'+(x.atrasadas===1?'':'s')+' atrasada'+(x.atrasadas===1?'':'s'));
+      if(!x.nunca_entrou&&!x.estudo_min) r.push('Nenhum estudo no app no período');
+      return r; }
+    h+='<div class="evres"><b>'+l.length+' de '+(d.total||0)+' alunos com algum sinal</b><span>🔴 '+N.alto+' alto</span><span>🟠 '+N.medio+' médio</span><span>🟡 '+N.baixo+' baixo</span>'+(d.bloqueados!=null?'<span>⛔ '+d.bloqueados+' bloqueado'+(d.bloqueados===1?'':'s')+'</span>':'')+'</div>';
+    var vis=l.filter(function(x){ return evBaixo||x.nivel!=='baixo'; });
+    if(!l.length) return h+'<div class="escvazio">Nenhum aluno com sinais de risco neste período. 🎉</div>';
+    h+='<div class="evlista">'+(vis.length?vis.map(function(x){ return '<div class="evit ev'+x.nivel+'"><div class="evtop"><b>'+COR[x.nivel]+' '+E(x.nome)+'</b><small>'+E(x.turma||'sem turma')+' · '+NOM[x.nivel]+'</small></div><div class="evmot">'+motivos(x).map(function(t){ return '<span>'+E(t)+'</span>'; }).join('')+'</div></div>'; }).join(''):'<div class="escdim">Nenhum aluno com risco alto ou médio.</div>')+'</div>';
+    if(N.baixo) h+='<button type="button" class="escbtn2" data-ea="evbaixo" style="margin-top:6px">'+(evBaixo?'Esconder os de risco baixo':'Mostrar também os '+N.baixo+' de risco baixo')+'</button>';
+    return h; }
+  function evasaoConta(m){ var c=evas[m.escola.id+':'+evDias]; if(!c||!c.d) return ''; var n=(c.d.lista||[]).filter(function(x){ return x.nivel==='alto'; }).length; return n?'<b class="escnovas">'+n+' com risco alto</b>':'faltas, acesso, notas e tarefas'; }
+
   // ---------- encaixe nas telas ----------
   function extAluno(m){ return faleHTML(m)+gradeAlunoHTML(m)+ocorrHTML(m,'📋 Ocorrências'); }
   function extResp(m){ return quedaHTML(m,true)+chegadaPaisHTML(m)+autzHTML(m)+ldHTML(m)+faleHTML(m)+gradeAlunoHTML(m)+ocorrHTML(m,'📋 Ocorrências'); }
@@ -8832,6 +8868,7 @@ if ('serviceWorker' in navigator) {
     h+=secao('xautz','✍️ Autorizações','passeios e saídas',autzHTML(m));
     h+=secao('xocorr','📋 Ocorrências','elogios, observações e advertências',ocorrHTML(m,''));
     if(opc(m).queda_prof) h+=secao('xqueda','📉 Queda de rendimento','alunos das suas turmas',quedaHTML(m,false));
+    h+=secao('xevasao','🚸 Risco de evasão',evasaoConta(m)||'alunos das suas turmas',evasaoHTML(m));
     return h; }
   function extCoord(m){ var o=opc(m), h='';
     h+=secao('ginc','🏆 Gincana Rumo ao ENEM','ao vivo na escola',gincListaHTML(m));
@@ -8840,6 +8877,7 @@ if ('serviceWorker' in navigator) {
     h+=secao('xautz','✍️ Autorizações','passeios e saídas',autzHTML(m));
     h+=secao('xocorr','📋 Ocorrências','elogios, observações e advertências',ocorrHTML(m,''));
     h+=secao('xqueda','📉 Queda de rendimento','últimos 30 dias',quedaHTML(m,false));
+    h+=secao('xevasao','🚸 Risco de evasão',evasaoConta(m)||'faltas, acesso, notas e tarefas',evasaoHTML(m));
     h+=secao('xld','💬 Linha direta','conversas pais ↔ professores',ldHTML(m).replace(/^<h2[^>]*>.*?<\/h2>/,''));
     var fn=faleNovas(m); h+=secao('xfale','💬 Fale com a escola',fn?'<b class="escnovas">'+fn+' nova'+(fn===1?'':'s')+'</b>':'mensagens de pais, alunos e professores',faleHTML(m));
     return h; }
@@ -8853,6 +8891,7 @@ if ('serviceWorker' in navigator) {
     if(a==='ldabrir'){ var tx=b.querySelector('b'); ldAbrir(b.getAttribute('data-a'),b.getAttribute('data-p'),tx?tx.textContent:''); return true; }
     if(a==='ldnovo'){ ldNovo(); return true; }
     if(a==='falenova'){ faleNova(); return true; }
+    if(a==='evbaixo'){ evBaixo=!evBaixo; desenhar(); return true; }
     if(a==='faleabrir'){ faleAbrir(id); return true; }
     if(a==='faleenviar'){ faleEnviar(); return true; }
     if(a==='ldenviar'){ ldEnviar(); return true; }
@@ -9155,7 +9194,7 @@ if ('serviceWorker' in navigator) {
 
   window.bdEscola={ abrir:function(el,modo){ if(!focoNovo) foco=null; focoNovo=false; modoRel=modo==='rel'; if(box!==el){ box=el; box.addEventListener('click',clique);
     box.addEventListener('input',function(e){ if(chamAb&&(e.target.id==='chCont'||e.target.id==='chObs')){ chamAb[e.target.id==='chCont'?'cont':'obs']=e.target.value; chamAb.dmudou=true; } });
-    box.addEventListener('change',function(e){ if(e.target.hasAttribute&&e.target.hasAttribute('data-gfoto')){ gabFoto(e.target); return; } if(e.target.id==='qhPer'){ var mq=atual(); if(mq) quadroCarrega(mq,e.target.value); return; } if(e.target.id==='rkDias'){ var mr=atual(); if(mr) rkCarrega(mr,+e.target.value); return; } if(e.target.id==='xCIni'||e.target.id==='xCFim'){ var mh=atual(), ini=box.querySelector('#xCIni').value, fim=box.querySelector('#xCFim').value; if(!ini||!fim) return; if(fim<=ini){ aviso('O fim precisa ser depois do início.'); return; }
+    box.addEventListener('change',function(e){ if(e.target.hasAttribute&&e.target.hasAttribute('data-gfoto')){ gabFoto(e.target); return; } if(e.target.id==='qhPer'){ var mq=atual(); if(mq) quadroCarrega(mq,e.target.value); return; } if(e.target.id==='rkDias'){ var mr=atual(); if(mr) rkCarrega(mr,+e.target.value); return; } if(e.target.id==='evDias'){ evDias=+e.target.value||30; desenhar(); return; } if(e.target.id==='xCIni'||e.target.id==='xCFim'){ var mh=atual(), ini=box.querySelector('#xCIni').value, fim=box.querySelector('#xCFim').value; if(!ini||!fim) return; if(fim<=ini){ aviso('O fim precisa ser depois do início.'); return; }
       rpc('escola_opcoes_salvar',{p_escola:mh.escola.id,p:{conversa_ini:ini,conversa_fim:fim}}).then(function(){ aviso('Salvo: conversas das '+hTxt(ini)+' às '+hTxt(fim)); xLimpa(); desenhar(); },function(er){ aviso(novErro(er)); }); return; }
     if(e.target.id==='xQLim'){ var mx=atual(), lv=+e.target.value; rpc('escola_opcoes_salvar',{p_escola:mx.escola.id,p:{queda_limite:lv}}).then(function(){ aviso('Salvo: aviso a partir de '+String(lv).replace('.',',')+' ponto'); xLimpa(); desenhar(); },function(er){ aviso(novErro(er)); }); return; } if(e.target.id==='qhNT'||e.target.id==='qhNC'){ var mq2=atual(), vq=+e.target.value; rpc('quadro_config',{p_escola:mq2.escola.id,p_on:null,p_turma:e.target.id==='qhNT'?vq:null,p_colegio:e.target.id==='qhNC'?vq:null}).then(function(){ aviso('Salvo: '+vq+' primeiros '+(e.target.id==='qhNT'?'de cada turma':'do colégio')); quadros={}; desenhar(); },function(er){ aviso(novErro(er)); }); return; } if(chamAb&&/^ch(Mat|Dia|Aula)$/.test(e.target.id)){ var cv=e.target.value.trim();
         if(e.target.id==='chMat'&&(!cv||cv===chamAb.materia)) return;
