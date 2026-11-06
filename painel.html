@@ -30,7 +30,15 @@
   .orline{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;margin:14px 0 2px}
   .orline::before,.orline::after{content:"";flex:1;height:1px;background:var(--line)}
   .msg{font-size:13px;color:#b42318;min-height:16px;margin-top:8px}
-  .topbar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;position:sticky;top:0;z-index:40;background:var(--bg,#f6f4ee);padding:8px 0;border-bottom:1px solid var(--line,#e5e0d6)}
+  .topbts{display:flex;gap:6px}
+  .card>h2.acc{cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .card>h2.acc::after{content:"▼";font-size:12px;color:var(--muted,#888);transition:transform .15s}
+  .card.fechado>h2.acc::after{transform:rotate(-90deg)}
+  .card.fechado>*:not(h2){display:none!important}
+  .nums>div{cursor:pointer}.nums>div.on{outline:2px solid var(--accent,#1f4e8c)}
+  #numsLista{margin:-4px 0 14px;padding:10px 12px;border:1px solid var(--line,#e5e0d6);border-radius:12px;background:var(--surface,#fff);max-height:320px;overflow:auto;font-size:14px}
+  #numsLista b{display:block;margin-bottom:6px}#numsLista div{padding:3px 0;border-bottom:1px solid var(--line,#eee)}#numsLista small{color:var(--muted,#888)}
   .marca{display:flex;align-items:center;gap:12px}
   .logo{width:58px;height:58px;border-radius:12px;background:#fffdf8;box-shadow:0 3px 10px rgba(0,0,0,.1);padding:5px}
   .sair{background:none;color:var(--muted);border:1px solid var(--line);font-size:13px;padding:6px 10px}
@@ -101,7 +109,7 @@
 <div class="wrap">
   <div class="topbar">
     <div class="marca"><img class="logo" id="logo" src="icons/logo.png" alt=""><div><h1>Painel da Escola</h1><p class="sub" id="escNome">Liberar, bloquear e remover acessos</p></div></div>
-    <button class="sair" id="sair" hidden>Sair</button>
+    <div class="topbts"><button class="sair" id="voltar" type="button">← Página anterior</button><button class="sair" id="sair" hidden>Sair</button></div>
   </div>
 
   <div class="card" id="login-card">
@@ -285,13 +293,12 @@
     var m=atual(), mem=m.membros||[], tur=m.turmas||[];
     $('escNome').textContent=m.escola.nome+(m.escola.modelo?' (exemplo)':'');
     function conta(f){ return mem.filter(f).length; }
-    $('nums').innerHTML=
-      '<div class="destaque"><b>'+conta(function(x){ return x.papel==='aluno'&&x.entrou&&!x.bloqueado; })+'</b>alunos ativos</div>'
-      +'<div><b>'+conta(function(x){ return x.papel==='responsavel'&&x.entrou&&!x.bloqueado; })+'</b>responsáveis ativos</div>'
-      +'<div><b>'+conta(function(x){ return x.papel==='professor'&&x.entrou&&!x.bloqueado; })+'</b>professores ativos</div>'
-      +'<div><b>'+conta(function(x){ return !x.entrou&&!x.bloqueado; })+'</b>convites aguardando</div>'
-      +'<div><b>'+conta(function(x){ return x.bloqueado; })+'</b>bloqueados</div>'
-      +'<div class="destaque"><b>'+conta(function(x){ return x.papel==='aluno'&&!x.bloqueado; })+'</b>alunos para cobrança</div>';
+    var NUMS=[['alunos ativos',function(x){ return x.papel==='aluno'&&x.entrou&&!x.bloqueado; },1],['responsáveis ativos',function(x){ return x.papel==='responsavel'&&x.entrou&&!x.bloqueado; }],
+      ['professores ativos',function(x){ return x.papel==='professor'&&x.entrou&&!x.bloqueado; }],['convites aguardando',function(x){ return !x.entrou&&!x.bloqueado; }],['bloqueados',function(x){ return x.bloqueado; }],
+      ['alunos para cobrança',function(x){ return x.papel==='aluno'&&!x.bloqueado; },1]];
+    window.__bdNums=NUMS; window.__bdMem=mem; window.__bdTur=tur;
+    $('nums').innerHTML=NUMS.map(function(n,i){ return '<div'+(n[2]?' class="destaque"':'')+' data-num="'+i+'" title="Toque para ver a lista"><b>'+conta(n[1])+'</b>'+n[0]+'</div>'; }).join('');
+    if(window.__bdNumAberto!=null) mostraNum(window.__bdNumAberto,true);
     $('gp').checked=!!m.escola.grupo_pais;
     // formulário
     var ft=$('fTurma').value;
@@ -548,6 +555,29 @@
   function fechar(){ $('modal').hidden=true; }
   $('modal').addEventListener('click',function(e){ if(e.target===this) fechar(); });
   document.addEventListener('keydown',function(e){ if(e.key==='Escape') fechar(); });
+})();
+</script>
+<script>
+/* 06/11: página anterior, sanfona nos títulos e números que abrem a lista */
+(function(){
+  var vt=document.getElementById('voltar'); if(vt) vt.addEventListener('click',function(){ if(history.length>1) history.back(); else location.href='app.html'; });
+  var K='bd_painel_fechados'; function lerF(){ try{ return JSON.parse(localStorage.getItem(K)||'{}')||{}; }catch(_){ return {}; } }
+  function chave(h){ return (h.textContent||'').replace(/[^\wÀ-ú ]+/g,'').trim().slice(0,40); }
+  function aplica(){ var f=lerF();
+    [].forEach.call(document.querySelectorAll('.card>h2:first-child'),function(h){ if(h.classList.contains('acc')) return; var c=h.parentNode; if(c.id==='login-card') return;
+      h.classList.add('acc'); if(f[chave(h)]) c.classList.add('fechado');
+      h.addEventListener('click',function(){ c.classList.toggle('fechado'); var g=lerF(); g[chave(h)]=c.classList.contains('fechado'); try{ localStorage.setItem(K,JSON.stringify(g)); }catch(_){} }); }); }
+  aplica(); if(window.MutationObserver) new MutationObserver(aplica).observe(document.body,{childList:true,subtree:true});
+  window.mostraNum=function(i,manter){ var nums=document.getElementById('nums'); if(!nums) return; var L=document.getElementById('numsLista');
+    if(!manter&&window.__bdNumAberto===i){ window.__bdNumAberto=null; if(L) L.remove(); [].forEach.call(nums.children,function(d){ d.classList.remove('on'); }); return; }
+    window.__bdNumAberto=i; var n=(window.__bdNums||[])[i]; if(!n) return; var tur={}; (window.__bdTur||[]).forEach(function(t){ tur[t.id]=t.nome; });
+    var P={aluno:'aluno(a)',responsavel:'responsável',professor:'professor(a)',coordenacao:'coordenação'};
+    var l=(window.__bdMem||[]).filter(n[1]).sort(function(a,b){ return String(a.nome).localeCompare(String(b.nome)); });
+    var E=function(t){ return String(t==null?'':t).replace(/[&<>"]/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); };
+    if(!L){ L=document.createElement('div'); L.id='numsLista'; nums.parentNode.insertBefore(L,nums.nextSibling); }
+    L.innerHTML='<b>'+E(n[0])+' ('+l.length+')</b>'+(l.map(function(x){ return '<div>'+E(x.nome)+' <small>· '+E(P[x.papel]||x.papel)+(x.turma_id&&tur[x.turma_id]?' · '+E(tur[x.turma_id]):'')+(x.ultimo_acesso?' · último acesso '+new Date(x.ultimo_acesso).toLocaleDateString('pt-BR'):'')+'</small></div>'; }).join('')||'<small>Ninguém.</small>');
+    [].forEach.call(nums.children,function(d){ d.classList.toggle('on',+d.getAttribute('data-num')===i); }); };
+  document.addEventListener('click',function(e){ var d=e.target.closest&&e.target.closest('#nums>div[data-num]'); if(d) window.mostraNum(+d.getAttribute('data-num')); });
 })();
 </script>
 </html>
