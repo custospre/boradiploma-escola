@@ -615,6 +615,7 @@ select.mini{font:inherit;font-family:var(--font-head);font-size:.82rem;padding:7
 #vzBack{position:fixed;bottom:calc(27px + env(safe-area-inset-bottom,0px));height:38px;padding:0 13px;border-radius:999px;border:1px solid var(--accent);
   background:var(--surface);color:var(--accent);font-family:var(--font-head);font-weight:700;font-size:13px;white-space:nowrap;cursor:pointer;z-index:299;box-shadow:0 3px 10px rgba(0,0,0,.15)}
 #vzBack[hidden]{display:none}
+.vcbox{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px}.vccard{background:var(--surface,#fff);color:var(--fg);border-radius:14px;padding:18px 20px;max-width:420px;width:100%;box-shadow:0 10px 30px rgba(0,0,0,.25)}.vccard small{color:var(--muted)}.vccard h3{margin:4px 0 8px}.vccard p{margin:0 0 10px;line-height:1.45}.vccard .vcnota{font-size:.82rem;color:var(--muted)}
 body.vbon #backBtn{display:none!important}
 .subnomerow{display:flex;gap:8px;align-items:center}.subnomerow #subName{flex:1}
 #subNameBtn{flex:none;white-space:nowrap}
@@ -1452,14 +1453,76 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
       if(outros.children.length) grupos.push(outros);
       return grupos.filter(function(g){ return g.children.length; }).map(function(g){ return {label:g.label, children:g.children}; });
     }
-    return ps.slice().sort(function(a,b){ return (ORD[a.papel]||0)-(ORD[b.papel]||0); }).map(function(p){
+    var out=ps.slice().sort(function(a,b){ return (ORD[a.papel]||0)-(ORD[b.papel]||0); }).map(function(p){
       var lb=(NOME[p.papel]||p.papel)+(p.papel==='responsavel'&&p.filho&&ps.filter(function(q){ return q.papel==='responsavel'; }).length>1?' · '+p.filho:'')+(varias?' · '+p.escola:'');
       return {label:lb, children:itens(p), vz:'Abrir '+lb.replace(/^\S+\s/,'')}; });
+    // transparência: a coordenação vê no índice o que cada papel tem (só para consulta)
+    if(ps.some(function(p){ return p.papel==='coordenacao'; })){
+      var tem={}; ps.forEach(function(p){ tem[p.papel]=1; });
+      var kids=['professor','responsavel','aluno'].filter(function(r){ return !tem[r]; }).map(function(r){
+        return {label:VER_COMO[r].t, children:VER_COMO[r].i.map(function(x,k){ return {label:x[0], act:'escinfo:'+r+':'+k, vz:''}; })}; });
+      if(kids.length) out.push({label:'👁 O que cada um vê', children:kids, vz:'Abrir o que cada um vê'});
+    }
+    return out;
   }
+  var VER_COMO={
+    professor:{t:'🧑‍🏫 Professor', i:[
+      ['📚 Minhas turmas','As turmas em que dá aula, com a lista de alunos de cada uma.'],
+      ['🗓 Chamada e notas','Faz a chamada da aula e lança as notas oficiais da matéria dele.'],
+      ['📎 Material e tarefas','Envia material e tarefas para uma ou várias turmas; vê quem entregou e dá nota.'],
+      ['✍️ Redações','Propõe temas de redação; a IA corrige pelas 5 competências do ENEM e o professor revisa.'],
+      ['🧮 Correção de provas (gabarito)','Cadastra o gabarito e corrige a folha de respostas pela foto.'],
+      ['🎥 Aulas on-line','Publica aulas de recuperação e aulas virtuais.'],
+      ['📋 Planos semanais','Escreve o planejamento da semana; a coordenação dá o visto.'],
+      ['📊 Simulados das suas turmas','Acertos dos alunos nos simulados, por matéria.'],
+      ['🏆 Gincana Rumo ao ENEM','Conduz a gincana ao vivo na escola, com o telão.'],
+      ['🏆 Quadro de honra','Destaques da turma (se a coordenação ligar).'],
+      ['📋 Ocorrências','Registra elogios, observações e advertências; os pais tomam ciência.'],
+      ['✍️ Autorizações','Vê as autorizações de passeios e saídas das turmas dele.'],
+      ['💬 Linha direta com os pais','Conversa com os pais dos alunos dele (no horário da escola).'],
+      ['💬 Grupos das turmas','Participa e modera o grupo de cada turma.']]},
+    responsavel:{t:'👨‍👩‍👧 Pais', i:[
+      ['📅 Provas e prazos do filho','Provas, tarefas e prazos marcados para o filho.'],
+      ['📒 Notas do filho','Notas oficiais lançadas pelos professores.'],
+      ['✅ Frequência do filho','Presenças e faltas em cada aula.'],
+      ['📊 Notas dos simulados','Acertos do filho nos simulados, por matéria.'],
+      ['⏱ Tempo de estudo','Quanto tempo o filho estudou no app na semana.'],
+      ['📢 Avisos da escola','Avisos da coordenação; pode responder só para a escola.'],
+      ['💬 Linha direta com os professores','Conversa com os professores do filho (no horário da escola).'],
+      ['✍️ Autorizações','Autoriza passeios e saídas pelo app.'],
+      ['📋 Ocorrências','Elogios, observações e advertências do filho, com ciência.'],
+      ['🚗 Estou chegando','Avisa a portaria que está chegando para buscar o filho.'],
+      ['👨‍👩‍👧 Grupo dos pais','Grupo dos pais da turma (só se a escola liberar).'],
+      ['🛟 Disque-denúncia','Relato para a escola, com opção de anônimo.']]},
+    aluno:{t:'🎒 Aluno', i:[
+      ['📢 Avisos da escola','Avisos da coordenação.'],
+      ['📒 Minhas notas','Notas oficiais de cada matéria.'],
+      ['✅ Minha frequência','Presenças e faltas.'],
+      ['📝 Tarefas','Tarefas com prazo; entrega pelo app (texto, foto ou arquivo).'],
+      ['✍️ Redação','Escreve a redação e recebe a correção da IA no padrão ENEM.'],
+      ['📝 Simulados','Simulado semanal feito pela IA a partir das aulas.'],
+      ['🤖 Tira-dúvidas com IA','Tira dúvidas da matéria, com as regras definidas pela escola.'],
+      ['📚 Material da escola','Material enviado pelos professores.'],
+      ['🎥 Aulas on-line','Aulas de recuperação e aulas virtuais.'],
+      ['💬 Grupo da turma','Grupo da turma, com moderação da escola.'],
+      ['🏆 Quadro de honra','Destaques da turma e do colégio (se a coordenação ligar).'],
+      ['🏆 Gincana Rumo ao ENEM','Responde a gincana ao vivo pelo celular.'],
+      ['🛟 Disque-denúncia','Relato para a escola, com opção de anônimo.']]}
+  };
+  function verComoInfo(r,k){ var x=(VER_COMO[r]||{i:[]}).i[+k]; if(!x) return;
+    var o=document.getElementById('verComoBox'); if(o) o.remove();
+    o=document.createElement('div'); o.id='verComoBox'; o.className='vcbox';
+    o.innerHTML='<div class="vccard" role="dialog" aria-modal="true"><small>'+esc(VER_COMO[r].t)+' vê</small><h3>'+esc(x[0])+'</h3><p>'+esc(x[1])+'</p>'
+      +'<p class="vcnota">Só quem tem esse acesso abre esta parte. Para ver de verdade, use a escola de exemplo com um convite desse papel.</p><button type="button" class="notesbtn">Fechar</button></div>';
+    document.body.appendChild(o);
+    function sai(){ o.remove(); document.removeEventListener('keydown',tc,true); }
+    function tc(e){ if(e.key==='Escape'||e.key==='Enter'){ e.preventDefault(); sai(); } }
+    o.addEventListener('click',function(e){ if(e.target===o||e.target.tagName==='BUTTON') sai(); }); document.addEventListener('keydown',tc,true); }
 
   function handleAct(act){
     if(!act)return;
     if(act==='painelesc'){ location.href='painel.html'; return; }
+    if(act.indexOf('escinfo:')===0){ var q0=act.split(':'); verComoInfo(q0[1],q0[2]); return; }
     if(act.indexOf('escir:')===0){ var r0=act.slice(6), c0=r0.indexOf(':'); if(window.bdEscolaIr) window.bdEscolaIr(r0.slice(0,c0),decodeURIComponent(r0.slice(c0+1))); else openEscola(); return; }
     if(act==='prazos'){ openPrazos(); return; }
     if(act==='manual'){ openManual(); return; }
