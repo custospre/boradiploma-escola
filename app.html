@@ -4218,22 +4218,29 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
   // ---- alerta de prazos (ao abrir) ----
   function fmtBR(v){ var p=String(v).split('-'); return p.length===3?(p[2]+'/'+p[1]+'/'+p[0]):v; }
   function daysUntil(v){ var p=String(v).split('-'); var d=new Date(+p[0],+p[1]-1,+p[2]); var t=new Date(); t.setHours(0,0,0,0); d.setHours(0,0,0,0); return Math.round((d-t)/86400000); }
-  function checkPrazos(){
+  var prazoFechado=false;
+  function checkPrazos(atualiza){
     if(!prazoModal)return;
+    if(atualiza&&prazoFechado) return;   // a pessoa já fechou o aviso: não abre de novo
     var subs=getSubs(), list=[];
     subs.forEach(function(s){ (s.avals||[]).concat(s.trabalhos||[]).forEach(function(it){ if(!it.date || it.entregue)return; var du=daysUntil(it.date); if(du>=0) list.push({sub:s.name||'(matéria)',label:it.label,date:it.date,du:du}); }); });
+    // 📅 o que a escola marcou na Agenda da turma (guardado quando o app busca a agenda)
+    var ag=[]; try{ ag=JSON.parse(localStorage.getItem('bd_agenda_turma')||'[]')||[]; }catch(_){}
+    ag.forEach(function(x){ if(!x||!x.data) return; var du=daysUntil(x.data); if(du>=0&&du<=30) list.push({sub:'🏫 '+(x.materia||x.turma||'Escola'),label:(x.rot||'')+': '+x.titulo+(x.hora?' · '+x.hora:''),date:x.data,du:du,escola:1}); });
     if(!list.length)return;
     list.sort(function(a,b){return a.du-b.du;});
     var h='';
     list.forEach(function(x){
       var w=x.du===0?'HOJE':(x.du===1?'amanhã':('em '+x.du+' dias'));
-      h+='<div class="prz'+(x.du<=3?' soon':'')+'"><div>'+esc(x.sub)+'<small>'+esc(x.label)+' · '+fmtBR(x.date)+'</small></div><div class="pwhen">'+w+'</div></div>';
+      h+='<div class="prz'+(x.du<=3?' soon':'')+'"><div>'+esc(x.sub)+'<small>'+esc(x.label)+' · '+fmtBR(x.date)+(x.escola?' · marcado pela escola':'')+'</small></div><div class="pwhen">'+w+'</div></div>';
     });
+    if(atualiza&&!prazoModal.hidden){ prazoBody.innerHTML=h; return; }
     prazoBody.innerHTML=h; prazoModal.hidden=false; try{ if(document.activeElement) document.activeElement.blur(); prazoClose.focus(); }catch(e){}
   }
-  if(prazoClose) prazoClose.addEventListener('click',function(){ prazoModal.hidden=true; });
-  document.addEventListener('keydown',function(e){ if(prazoModal && !prazoModal.hidden && (e.key==='Enter'||e.key==='Escape')){ e.preventDefault(); e.stopPropagation(); prazoModal.hidden=true; } },true);
-  if(prazoModal) prazoModal.addEventListener('click',function(e){ if(e.target===prazoModal) prazoModal.hidden=true; });
+  if(prazoClose) prazoClose.addEventListener('click',function(){ prazoModal.hidden=true; prazoFechado=true; });
+  document.addEventListener('keydown',function(e){ if(prazoModal && !prazoModal.hidden && (e.key==='Enter'||e.key==='Escape')){ e.preventDefault(); e.stopPropagation(); prazoModal.hidden=true; prazoFechado=true; } },true);
+  if(prazoModal) prazoModal.addEventListener('click',function(e){ if(e.target===prazoModal){ prazoModal.hidden=true; prazoFechado=true; } });
+  window.bdCheckPrazos=checkPrazos;
 
   // ---- seletor de código em sanfona (página da aula) ----
   var insPick=document.getElementById('insPick'), insPanel=document.getElementById('insPanel');
@@ -8881,6 +8888,14 @@ if ('serviceWorker' in navigator) {
       return rpc('agenda_turma_salvar',{p_escola:m.escola.id,p_turmas:ts,p_tipo:v('#agTipo'),p_materia:v('#agMat'),p_titulo:v('#agTit'),p_descricao:v('#agDesc'),p_data:v('#agData'),p_hora:v('#agHora')||null})
         .then(function(n){ aberto.xagenda=true; xLimpa(); setTimeout(function(){ aviso('Marcado na agenda'+(n>1?' de '+n+' turmas':'')+' · alunos e pais avisados'); },700); },function(er){ throw new Error(novErro(er)); }); }); }
 
+  // guarda a Agenda da turma de quem é aluno ou responsável, para o aviso "⏰ Prazos próximos" ao abrir o app
+  function agendaGuarda(l){ var es={}; (l||[]).forEach(function(m){ if(m&&(m.papel==='aluno'||m.papel==='responsavel')&&!m.bloqueado&&m.escola) es[m.escola.id]=1; });
+    var ids=Object.keys(es); if(!ids.length){ try{ localStorage.removeItem('bd_agenda_turma'); }catch(_){} return; }
+    Promise.all(ids.map(function(id){ return rpc('agenda_turma_lista',{p_escola:id}).catch(function(){ return []; }); })).then(function(rs){
+      var out=[]; rs.forEach(function(r){ (Array.isArray(r)?r:[]).forEach(function(x){ out.push({data:x.data,hora:x.hora,tipo:x.tipo,rot:AGT[x.tipo]||x.tipo,materia:x.materia,turma:x.turma,titulo:x.titulo}); }); });
+      var a=JSON.stringify(out), antes=''; try{ antes=localStorage.getItem('bd_agenda_turma')||''; localStorage.setItem('bd_agenda_turma',a); }catch(_){}
+      if(a!==antes&&window.bdCheckPrazos) window.bdCheckPrazos(true); }); }
+
   // ---------- 🚸 risco de evasão (coordenação e professor) ----------
   var evas={}, evDias=30, evBaixo=false;
   function evasaoHTML(m){ var k=m.escola.id+':'+evDias, c=evas[k];
@@ -9280,7 +9295,7 @@ if ('serviceWorker' in navigator) {
   (function buscaMats(n){
     if(!logado()){ if(n<200) setTimeout(function(){ buscaMats(n+1); },2000); return; }
     rpc('materiais_lista').then(function(l){ if(Array.isArray(l)) guardaMats(l); },function(){});
-    if(!n||!mapaLer().papeis) rpc('escola_painel').then(function(l){ if(Array.isArray(l)) mapaPapeis(l); },function(){});
+    if(!n||!buscaMats.papeis){ buscaMats.papeis=1; rpc('escola_painel').then(function(l){ if(Array.isArray(l)){ mapaPapeis(l); agendaGuarda(l); } },function(){}); }
     setTimeout(function(){ buscaMats(0); },10*60*1000);
   })(0);
   // tocar no aviso "💬 Turma · Grupo..." abre direto a conversa
