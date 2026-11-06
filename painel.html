@@ -564,7 +564,7 @@
 <script>
 /* 06/11: página anterior, sanfona nos títulos e números que abrem a lista */
 (function(){
-  var vt=document.getElementById('voltar'); if(vt) vt.addEventListener('click',function(){ if(history.length>1) history.back(); else location.href='app.html'; });
+  var vt=document.getElementById('voltar'); if(vt) vt.addEventListener('click',function(){ location.href='app.html#escola'; });
   var K='bd_painel_fechados'; function lerF(){ try{ return JSON.parse(localStorage.getItem(K)||'{}')||{}; }catch(_){ return {}; } }
   function chave(h){ return (h.textContent||'').replace(/[^\wÀ-ú ]+/g,'').trim().slice(0,40); }
   function aplica(){ var f=lerF();

@@ -3698,6 +3698,7 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
     if(h.indexOf('#notif=')===0){ var n=null; try{ n=JSON.parse(decodeURIComponent(h.slice(7))); }catch(e){}
       try{ history.replaceState(null,'',location.pathname+location.search); }catch(e){}
       setTimeout(function(){ agAbreNotif(n); },300); }
+    if(h==='#escola'){ try{ history.replaceState(null,'',location.pathname+location.search); }catch(e){} setTimeout(function(){ openEscola(); },300); }
     if(navigator.serviceWorker) navigator.serviceWorker.addEventListener('message',function(e){ if(e.data&&e.data.bdNotif) agAbreNotif(e.data.bdNotif); });
   })();
   function openConfig(){
@@ -6408,7 +6409,7 @@ if ('serviceWorker' in navigator) {
     h+='<div class="esccard escgp"><label class="escsw" title="Liga ou desliga"><input type="checkbox" data-ea="gp"'+(gp?' checked':'')+'><span></span></label>'
       +'<div><h3>👨‍👩‍👧 Grupo dos pais da turma: '+(gp?'<b class="escok">liberado</b>':'<b class="escoff">desligado</b>')+'</h3>'
       +'<p>Quando liberado, os responsáveis de cada turma veem uns aos outros e têm um grupo só deles, separado do grupo dos alunos. Com ou sem o grupo, cada responsável vê só o próprio filho e a escola.</p></div></div>';
-    h+='<a class="escbtn escpainel" href="painel.html" target="_blank" rel="noopener">🛠 Abrir o Painel da escola</a><span class="escdim"> liberar, bloquear e remover acessos</span>';
+    h+='<a class="escbtn escpainel" href="painel.html">🛠 Abrir o Painel da escola</a><span class="escdim"> liberar, bloquear e remover acessos</span>';
     h+=denunciasHTML();
     var nv=avisosEsc.reduce(function(n,a){ return n+(+a.novas||0); },0);
     h+=secao('avisos','📢 Avisos da escola',avisosEsc.length+' enviado'+(avisosEsc.length===1?'':'s')+(nv?' · <b class="escnovas">'+nv+' resposta'+(nv===1?'':'s')+' nova'+(nv===1?'':'s')+'</b>':''),
