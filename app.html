@@ -1385,7 +1385,9 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
   // material enviado pela escola para esta matéria (vem da Minha escola; casa pelo nome da matéria)
   function escMatNo(s){ var n=window.bdEscMatQtd?window.bdEscMatQtd(s.name):0; return n?[{label:'🏫 Material da escola ('+n+')', act:'escmat:'+s.name}]:[]; }
   function renderTree(){ if(!tree)return; tree.innerHTML=buildTree().map(function(n){return nodeHTML(n,1);}).join(''); }
-  function resetHome(){ renderTree(); }
+  function resetHome(){ renderTree(); var v=null; try{ v=JSON.parse(sessionStorage.getItem('bd_tree_volta')||'null'); sessionStorage.removeItem('bd_tree_volta'); }catch(_){}
+    if(v&&v.length){ treeReopen(v); setTimeout(function(){ var ns=tree&&tree.querySelectorAll('.tnode.open'); var u=ns&&ns[ns.length-1]; if(u) try{ u.scrollIntoView({block:'center'}); }catch(_){} },80); } }
+  function guardaVolta(){ try{ sessionStorage.setItem('bd_tree_volta',JSON.stringify(treeOpenKeys())); }catch(_){} }
   function treeOpenKeys(){ var out=[]; if(!tree) return out;
     [].slice.call(tree.querySelectorAll('.tnode.open')).forEach(function(n){ var p=[], x=n;
       while(x&&x!==tree){ if(x.classList&&x.classList.contains('tnode')){ var l=x.querySelector(':scope>.trow .tlabel'); p.unshift(l?l.textContent:''); } x=x.parentNode; }
@@ -1521,9 +1523,9 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
 
   function handleAct(act){
     if(!act)return;
-    if(act==='painelesc'){ location.href='painel.html'; return; }
+    if(act==='painelesc'){ guardaVolta(); location.href='painel.html'; return; }
     if(act.indexOf('escinfo:')===0){ var q0=act.split(':'); verComoInfo(q0[1],q0[2]); return; }
-    if(act.indexOf('escir:')===0){ var r0=act.slice(6), c0=r0.indexOf(':'); if(window.bdEscolaIr) window.bdEscolaIr(r0.slice(0,c0),decodeURIComponent(r0.slice(c0+1))); else openEscola(); return; }
+    if(act.indexOf('escir:')===0){ guardaVolta(); var r0=act.slice(6), c0=r0.indexOf(':'); if(window.bdEscolaIr) window.bdEscolaIr(r0.slice(0,c0),decodeURIComponent(r0.slice(c0+1))); else openEscola(); return; }
     if(act==='prazos'){ openPrazos(); return; }
     if(act==='manual'){ openManual(); return; }
     if(act==='fora'){ openFora(); return; }
