@@ -3103,6 +3103,10 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
       ov.querySelector('#prtRedo').addEventListener('click',function(){ refazComCursor(); toast('Folhas reorganizadas'); });
       // enquanto se digita, se o texto passar do fim da folha ele e levado para
       // a folha seguinte sozinho (antes ele simplesmente sumia)
+      // fonte ou imagem que termina de carregar depois da montagem muda a altura do texto: confere de novo
+      var tGar=null; function confere(){ clearTimeout(tGar); tGar=setTimeout(function(){ if(ov&&!ov.hidden) garanteFolhas(); },200); }
+      sheetsBox.addEventListener('load',confere,true);
+      try{ if(document.fonts&&document.fonts.ready) document.fonts.ready.then(confere); if(document.fonts&&document.fonts.addEventListener) document.fonts.addEventListener('loadingdone',confere); }catch(_){}
       var tRefaz=null, sujoPrt=false;
       sheetsBox.addEventListener('input',function(e){
         clearTimeout(tRefaz);
@@ -3151,6 +3155,41 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
     }
     function cabe(c,A){ return c.scrollHeight<=A.h*0.985; }
 
+    // Renumera as folhas ("n / total") e o contador da barra
+    function numera(){
+      var fs=[].slice.call(sheetsBox.children).filter(function(x){ return x.classList&&x.classList.contains('prtSheet'); });
+      fs.forEach(function(s,i){ var d=s.querySelector('.prtNum'); if(!d){ d=document.createElement('div'); d.className='prtNum'; d.setAttribute('contenteditable','false'); s.appendChild(d); }
+        d.textContent=(i+1)+' / '+fs.length; });
+      if(info) info.textContent=fs.length+(fs.length===1?' folha':' folhas')+' · '+PAPEL[cfg.papel].n+(cfg.deitado?' deitado':'')+' · o texto pode ser corrigido aqui';
+    }
+    // Verificacao de seguranca: confere cada folha e, se o texto passou do limite (o que ficaria escondido
+    // atras da folha de baixo), divide o ultimo bloco ou o leva para a folha seguinte. Roda depois de montar
+    // e quando algo muda de tamanho (fonte ou imagem que terminou de carregar).
+    function garanteFolhas(){
+      if(!sheetsBox) return false;
+      var A=area(), lim=A.h*0.985+1, mexeu=false, total=0, sel=window.getSelection(), nc=null, no=0;
+      if(sel&&sel.rangeCount&&sheetsBox.contains(sel.anchorNode)){ nc=sel.anchorNode; no=sel.anchorOffset; }
+      for(var i=0; total++<800; i++){
+        var cs=sheetsBox.querySelectorAll('.prtBody'); if(i>=cs.length) break;
+        var c=cs[i], volta=0;
+        while(c.scrollHeight>lim && volta++<60){
+          var folha=c.closest('.prtSheet'), prox=folha.nextElementSibling, nb=prox?prox.querySelector('.prtBody'):null;
+          var unico=(c.children.length<=1), alvo=unico?c.firstElementChild:c.lastElementChild; if(!alvo) break;
+          var criou=false; if(!nb){ nb=novaFolha(); criou=true; }
+          c.removeChild(alvo); var tt=alvo.cloneNode(true); c.appendChild(tt);
+          var r=parteBloco(tt,c,A,0);
+          if(cabe(c,A) && tt.textContent.trim()){ if(r) nb.insertBefore(r,nb.firstChild); mexeu=true; }       // dividiu: o resto vai para a folha seguinte
+          else{
+            c.removeChild(tt);
+            if(unico){ c.appendChild(alvo); if(criou&&!nb.children.length) nb.closest('.prtSheet').remove(); break; }  // bloco unico que nao da para dividir: deixa como esta (evita laco)
+            nb.insertBefore(alvo,nb.firstChild); mexeu=true;                                                   // leva o bloco inteiro para a folha seguinte
+          }
+        }
+      }
+      if(mexeu){ numera(); if(nc&&nc.isConnected){ try{ var rg=document.createRange(); rg.setStart(nc,no); rg.collapse(true); sel.removeAllRanges(); sel.addRange(rg); }catch(_){} } }
+      return mexeu;
+    }
+
     // Enter (ou texto novo) que empurra o fim da folha para fora: leva os ultimos blocos para o inicio da
     // folha seguinte NA HORA (so move elementos, e rapido). A reorganizacao completa vem depois (timer).
     function empurraExcesso(corpo){
@@ -3191,15 +3230,18 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
       if(el.nodeType!==1) return null;
       if(!el.children.length) return parte(el,c,A);
       if(nivel>6) return null;
-      var movidos=[];
+      var movidos=[], cont=false;
       while(!cabe(c,A) && el.childNodes.length>1){ var k=el.lastChild; movidos.unshift(k); el.removeChild(k); }
       if(!cabe(c,A) && el.childNodes.length===1){
         var so=el.firstChild;
         if(so.nodeType===3){ var sp=document.createElement('span'); sp.textContent=so.textContent; el.replaceChild(sp,so); so=sp; }
-        var rr=parteBloco(so,c,A,(nivel||0)+1); if(rr) movidos.unshift(rr);
+        var rr=parteBloco(so,c,A,(nivel||0)+1); if(rr){ movidos.unshift(rr); cont=true; }
       }
       if(!movidos.length) return null;
       var nb=el.cloneNode(false); if(nb.removeAttribute) nb.removeAttribute('id');
+      // continuacao de um item de lista nao ganha outra bolinha; lista numerada continua a contagem
+      if(nb.tagName==='LI') nb.style.listStyle='none';
+      if(nb.tagName==='OL') nb.setAttribute('start',String((parseInt(el.getAttribute('start'),10)||1)+el.children.length-(cont?1:0)));
       movidos.forEach(function(k){ nb.appendChild(k); });
       return nb;
     }
@@ -3243,6 +3285,7 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
       [].slice.call(tmp.querySelectorAll('script,style,canvas,iframe,.fmtbar,.dhandle,.prtNum,button,select,input,textarea,.rowbtns,.pdfview,.docview,.emptybox,.estback')).forEach(function(n){ n.remove(); });
       [].slice.call(tmp.querySelectorAll('[hidden]')).forEach(function(n){ n.remove(); });
       enche(tmp,A);
+      garanteFolhas();
       var fs=[].slice.call(sheetsBox.children);
       if(fs.length>1 && !fs[fs.length-1].textContent.trim()){ fs[fs.length-1].remove(); fs.pop(); }
       fs.forEach(function(s,i){ var d=document.createElement('div'); d.className='prtNum';
