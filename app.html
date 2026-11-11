@@ -2709,12 +2709,51 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
   }
   // Risca uma linha tracejada onde termina cada folha A4, como a quebra de
   // pagina do Word, para saber onde o texto vai cortar na impressao.
+  var _mfT=null, calcQuebras=null;
   function marcaFolhas(pg,alt,padTop){
     if(!editor)return;
+    var pos0=[]; for(var i=1;i<pg;i++) pos0.push(padTop+i*alt);
+    desenhaGuias(pos0);                       // na hora: posicao exata da folha (estimativa)
+    clearTimeout(_mfT);
+    if(pg<1) return;
+    // logo depois: 1o) usa a mesma paginacao da tela Imprimir (as linhas mostram onde o PDF vai quebrar);
+    // 2o) se isso falhar, encaixa cada linha no espaco ENTRE duas linhas de texto
+    _mfT=setTimeout(function(){
+      if(!editor||viewNote.hidden) return;
+      try{
+        var ysP=null; try{ ysP=calcQuebras?calcQuebras():null; }catch(e){ ysP=null; }
+        if(ysP){
+          desenhaGuias(ysP);
+          if(aulaPgs && /· \d+ pág/.test(aulaPgs.textContent)) aulaPgs.textContent=aulaPgs.textContent.replace(/· \d+ pág/,'· '+(ysP.length+1)+' pág');
+          return;
+        }
+        if(pg<2) return;
+        var cs=getComputedStyle(editor), fim=editor.scrollHeight-parseFloat(cs.paddingBottom);
+        var er=editor.getBoundingClientRect(), off=er.top+editor.clientTop, bots=[], rg=document.createRange();
+        var w=document.createTreeWalker(editor,NodeFilter.SHOW_TEXT,null), t;
+        while((t=w.nextNode())){
+          if(!/\S/.test(t.nodeValue)) continue;
+          rg.selectNodeContents(t);
+          var rs=rg.getClientRects(); for(var k=0;k<rs.length;k++){ if(rs[k].height>0) bots.push(rs[k].bottom-off); }
+        }
+        [].forEach.call(editor.querySelectorAll('img,table,hr'),function(el){ var r=el.getBoundingClientRect(); if(r.height>0) bots.push(r.bottom-off); });
+        bots.sort(function(a,b){ return a-b; });
+        var pos=[], y0=padTop, g=0;
+        while(g++<500){
+          var alvo=y0+alt; if(alvo>=fim) break;
+          var melhor=null; for(var j=0;j<bots.length;j++){ if(bots[j]<=alvo && bots[j]>y0+10) melhor=bots[j]; }
+          var y=(melhor!=null)?melhor+1:alvo; pos.push(y); y0=y;
+        }
+        desenhaGuias(pos);
+        if(aulaPgs && /· \d+ pág/.test(aulaPgs.textContent)) aulaPgs.textContent=aulaPgs.textContent.replace(/· \d+ pág/,'· '+(pos.length+1)+' pág');
+      }catch(e){}
+    },500);
+  }
+  function desenhaGuias(lista){
     var imgs=[], poss=[];
-    for(var i=1;i<pg;i++){
+    for(var i=0;i<lista.length;i++){
       imgs.push('repeating-linear-gradient(to right,var(--accent) 0 8px,transparent 8px 16px)');
-      poss.push('0 '+Math.round(padTop+i*alt)+'px');
+      poss.push('0 '+Math.round(lista[i])+'px');
     }
     if(imgs.length){
       editor.style.backgroundImage=imgs.join(',');
@@ -2856,6 +2895,62 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
     });
   }
 
+  // Redimensionar imagem da aula arrastando os cantos (clique na imagem para ver as alcas)
+  (function(){
+    var box=null, img=null, drag=null;
+    function mk(){
+      box=document.createElement('div'); box.id='imgResizer'; box.hidden=true;
+      box.style.cssText='position:fixed;z-index:9000;pointer-events:none;border:2px solid #7a1f2b;box-sizing:border-box';
+      ['nw','ne','sw','se'].forEach(function(p){
+        var h=document.createElement('div'); h.className='imgH'; h.setAttribute('data-p',p);
+        h.style.cssText='position:absolute;width:16px;height:16px;background:#fff;border:2px solid #7a1f2b;border-radius:3px;box-sizing:border-box;pointer-events:auto;touch-action:none;'
+          +(p.charAt(0)==='n'?'top:-9px;':'bottom:-9px;')
+          +(p.charAt(1)==='w'?'left:-9px;cursor:'+(p==='nw'?'nwse':'nesw')+'-resize':'right:-9px;cursor:'+(p==='ne'?'nesw':'nwse')+'-resize');
+        box.appendChild(h);
+      });
+      document.body.appendChild(box);
+      box.addEventListener('pointerdown',function(e){
+        var h=e.target.closest?e.target.closest('.imgH'):null; if(!h||!img) return;
+        e.preventDefault();
+        var r=img.getBoundingClientRect();
+        drag={p:h.getAttribute('data-p'), x:e.clientX, w:r.width};
+        try{ h.setPointerCapture(e.pointerId); }catch(_){}
+      });
+      box.addEventListener('pointermove',function(e){
+        if(!drag||!img) return;
+        var dx=e.clientX-drag.x; if(drag.p.charAt(1)==='w') dx=-dx;
+        var maxW=editor.getBoundingClientRect().width;
+        var w=Math.max(40,Math.min(maxW,drag.w+dx));
+        img.style.width=Math.round(w)+'px'; img.style.height='auto';
+        pos();
+      });
+      function fim(){ if(!drag) return; drag=null; try{ scheduleSave(); }catch(_){} try{ updAulaPgs(); }catch(_){} }
+      box.addEventListener('pointerup',fim);
+      box.addEventListener('pointercancel',fim);
+    }
+    function pos(){
+      if(!box||!img) return;
+      if(!img.isConnected||!editor.contains(img)){ esconde(); return; }
+      var r=img.getBoundingClientRect();
+      box.style.left=r.left+'px'; box.style.top=r.top+'px'; box.style.width=r.width+'px'; box.style.height=r.height+'px';
+    }
+    function mostra(i){ if(!box) mk(); img=i; box.hidden=false; pos(); }
+    function esconde(){ if(box) box.hidden=true; img=null; drag=null; }
+    editor.addEventListener('click',function(e){
+      var t=e.target;
+      if(t&&t.tagName==='IMG'&&!(t.closest&&t.closest('.pdfview,.docview,.dhandle'))) mostra(t); else esconde();
+    });
+    editor.addEventListener('input',pos);
+    editor.addEventListener('keydown',function(e){ if(e.key==='Escape') esconde(); });
+    document.addEventListener('pointerdown',function(e){
+      if(!box||box.hidden) return;
+      if(box.contains(e.target)||editor.contains(e.target)) return;
+      esconde();
+    },true);
+    window.addEventListener('scroll',pos,true);
+    window.addEventListener('resize',pos);
+  })();
+
   // Configurar Pagina na barra da aula (margem, papel, orientacao)
   var pgMargem=document.getElementById('pgMargem'), pgPapel=document.getElementById('pgPapel'), pgOrient=document.getElementById('pgOrient');
   function sincPagina(){
@@ -2947,11 +3042,24 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
     var ov=null, sheetsBox=null, info=null, pageStyle=null, src=null;
     var PAPEL={a4:{w:210,h:297,n:'A4'}, carta:{w:216,h:279,n:'Carta'}};
     var CPI=cfgPagina();
-    var cfg={papel:CPI.papel, margem:CPI.margem, letra:12, deitado:CPI.deitado, zoom:'auto'};
+    var cfg={papel:CPI.papel, margem:CPI.margem, letra:12, deitado:CPI.deitado, zoom:'auto', logo:lerLogo(), cabModo:lerCabModo(), cab:lerCab()};
+    // texto do cabecalho de cada folha: nao (sem texto) | auto (disciplina e titulo da aula) | livre (o que o usuario digitar)
+    function lerCabModo(){ var v='nao'; try{ v=localStorage.getItem('bd_prt_cabmodo')||'nao'; }catch(_){} return /^(nao|auto|livre)$/.test(v)?v:'nao'; }
+    function lerCab(){ var v=''; try{ v=localStorage.getItem('bd_prt_cab')||''; }catch(_){} return v.slice(0,140); }
+    var cabTit='';                                // titulo da aula atual (usado no modo auto)
+    function cabTexto(){
+      if(cfg.cabModo==='livre') return (cfg.cab||'').trim();
+      if(cfg.cabModo==='auto'){ var d=document.getElementById('aulaDisc'), dn=d?(d.textContent||'').trim():''; return [dn,(cabTit||'').trim()].filter(Boolean).join(' · '); }
+      return '';
+    }
+    function cabAltura(){ var tx=cabTexto(); if(cfg.logo==='nao'&&!tx) return 0; return (cfg.logo!=='nao'?LOGO_H:7)+LOGO_GAP; }
+    // logo do BoraDiploma no cabecalho de cada folha: nao (sem logo) | esq | cen | dir. Fica lembrado no aparelho.
+    function lerLogo(){ var v='esq'; try{ v=localStorage.getItem('bd_prt_logo')||'esq'; }catch(_){} return /^(nao|esq|cen|dir)$/.test(v)?v:'esq'; }
+    var LOGO_H=11, LOGO_GAP=3;                    // altura da logo e espaco abaixo dela (mm)
 
     function mm(v){ return v*96/25.4; }           // milimetros -> pixels na tela
     function folha(){ var p=PAPEL[cfg.papel]; return cfg.deitado?{w:p.h,h:p.w}:{w:p.w,h:p.h}; }
-    function area(){ var f=folha(); return {w:mm(f.w-2*cfg.margem), h:mm(f.h-2*cfg.margem)}; }
+    function area(){ var f=folha(), lg=cabAltura(); return {w:mm(f.w-2*cfg.margem), h:mm(f.h-2*cfg.margem-lg)}; }
 
     function monta(){
       ov=document.createElement('div'); ov.id='prtOverlay'; ov.hidden=true;
@@ -2962,6 +3070,9 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
         +'<label class="prtf">Papel <select id="prtPapel"><option value="a4">A4</option><option value="carta">Carta</option></select></label>'
         +'<label class="prtf">Margem <select id="prtMargem"><option value="10">1,0 cm</option><option value="15">1,5 cm</option><option value="20">2,0 cm</option><option value="25">2,5 cm</option><option value="30">3,0 cm</option></select></label>'
         +'<label class="prtf">Letra <select id="prtLetra"><option value="10">pequena</option><option value="12">normal</option><option value="14">grande</option></select></label>'
+        +'<label class="prtf">Logo <select id="prtLogo" title="Logo do BoraDiploma no topo de cada folha"><option value="nao">sem logo</option><option value="esq">à esquerda</option><option value="cen">no centro</option><option value="dir">à direita</option></select></label>'
+        +'<label class="prtf">Cabeçalho <select id="prtCabModo" title="Texto no topo de cada folha, na mesma linha da logo"><option value="nao">sem texto</option><option value="auto">disciplina e aula</option><option value="livre">texto livre</option></select></label>'
+        +'<input type="text" id="prtCab" maxlength="140" placeholder="Digite o cabeçalho" title="Texto do cabeçalho de cada folha" style="display:none;width:200px;font:inherit;padding:4px 6px;border:1px solid #bbb;border-radius:6px">'
         +'<label class="prtf">Deitado <input type="checkbox" id="prtDeitado"></label>'
         +'<label class="prtf">Ver <select id="prtZoom"><option value="auto">caber na tela</option><option value="0.5">50%</option><option value="0.75">75%</option><option value="1">100%</option></select></label>'
         +'<span class="prtsep"></span>'
@@ -2980,6 +3091,11 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
       ov.querySelector('#prtPapel').addEventListener('change',function(){ cfg.papel=this.value; guardaPagina(cfg.papel,null); sincPagina(); refaz(); });
       ov.querySelector('#prtMargem').addEventListener('change',function(){ cfg.margem=+this.value; guardaMargem(cfg.margem); sincPagina(); refaz(); });
       ov.querySelector('#prtLetra').addEventListener('change',function(){ cfg.letra=+this.value; refaz(); });
+      ov.querySelector('#prtLogo').addEventListener('change',function(){ cfg.logo=this.value; try{ localStorage.setItem('bd_prt_logo',cfg.logo); }catch(_){} refaz(); if(typeof updAulaPgs==='function') updAulaPgs(); });
+      function mostraCab(){ var i=ov.querySelector('#prtCab'); i.style.display=(cfg.cabModo==='livre')?'':'none'; }
+      ov.querySelector('#prtCabModo').addEventListener('change',function(){ cfg.cabModo=this.value; try{ localStorage.setItem('bd_prt_cabmodo',cfg.cabModo); }catch(_){} mostraCab(); refaz(); if(typeof updAulaPgs==='function') updAulaPgs(); if(cfg.cabModo==='livre') ov.querySelector('#prtCab').focus(); });
+      var tCab=null;
+      ov.querySelector('#prtCab').addEventListener('input',function(){ cfg.cab=this.value; try{ localStorage.setItem('bd_prt_cab',cfg.cab); }catch(_){} clearTimeout(tCab); tCab=setTimeout(function(){ refaz(); if(typeof updAulaPgs==='function') updAulaPgs(); },500); });
       ov.querySelector('#prtDeitado').addEventListener('change',function(){ cfg.deitado=this.checked; guardaPagina(null,cfg.deitado); sincPagina(); refaz(); });
       ov.querySelector('#prtZoom').addEventListener('change',function(){ cfg.zoom=(this.value==='auto')?'auto':(+this.value); aplicaZoom(); });
       window.addEventListener('resize',function(){ if(ov && !ov.hidden && cfg.zoom==='auto') aplicaZoom(); });
@@ -2987,10 +3103,14 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
       ov.querySelector('#prtRedo').addEventListener('click',function(){ refazComCursor(); toast('Folhas reorganizadas'); });
       // enquanto se digita, se o texto passar do fim da folha ele e levado para
       // a folha seguinte sozinho (antes ele simplesmente sumia)
-      var tRefaz=null;
-      sheetsBox.addEventListener('input',function(){
+      var tRefaz=null, sujoPrt=false;
+      sheetsBox.addEventListener('input',function(e){
         clearTimeout(tRefaz);
-        tRefaz=setTimeout(function(){ if(transbordou()||encolheu()) refazComCursor(); },800);
+        // texto que passou do fim da folha (ex.: Enter antes de um titulo no fim da folha) vai para a
+        // folha seguinte NA HORA; antes esperava 0,8 s e, enquanto isso, ficava escondido atras da folha de baixo
+        var corpoEd=(e&&e.target&&e.target.closest)?e.target.closest('.prtBody'):null;
+        if(!(e&&e.isComposing) && corpoEd && empurraExcesso(corpoEd)) sujoPrt=true;   // so move os blocos que passaram; rapido
+        tRefaz=setTimeout(function(){ var s=sujoPrt; sujoPrt=false; if(s||transbordou()||encolheu()) refazComCursor(); },800);
       });
       ov.querySelector('#prtSave').addEventListener('click',guarda);
       document.addEventListener('keydown',function(e){ if(e.key==='Escape' && ov && !ov.hidden){ e.preventDefault(); fecha(); } });
@@ -3012,9 +3132,40 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
       var c=document.createElement('div'); c.className='prtBody';
       c.style.fontSize=cfg.letra+'pt';
       c.setAttribute('contenteditable','true'); c.setAttribute('spellcheck','true'); c.setAttribute('lang','pt-BR');
+      var ctx=cabTexto(), temLogo=(cfg.logo!=='nao');
+      if(temLogo||ctx){
+        var H=temLogo?LOGO_H:7, lg=document.createElement('div'); lg.className='prtLogo'; lg.setAttribute('contenteditable','false');
+        lg.style.cssText='height:'+H+'mm;margin-bottom:'+LOGO_GAP+'mm;display:flex;align-items:center;gap:4mm;box-sizing:border-box;overflow:hidden;user-select:none;line-height:1.2;font-size:9pt;color:#444'
+          +(ctx?';border-bottom:.3mm solid #999;padding-bottom:1mm':'');
+        var im='<img src="icons/logo.png" alt="BoraDiploma" style="height:'+(ctx?H-2:H)+'mm;width:auto;flex:none">';
+        var tx=function(al){ return '<div style="flex:1;min-width:0;max-height:'+H+'mm;overflow:hidden;text-align:'+al+'">'+esc(ctx)+'</div>'; };
+        var html;
+        if(!ctx) html=im, lg.style.justifyContent=(cfg.logo==='dir'?'flex-end':(cfg.logo==='cen'?'center':'flex-start'));
+        else if(!temLogo) html=tx('left');
+        else if(cfg.logo==='esq') html=im+tx('right');
+        else if(cfg.logo==='dir') html=tx('left')+im;
+        else html=tx('left')+im+'<div style="flex:1"></div>';
+        lg.innerHTML=html; s.appendChild(lg);
+      }
       s.appendChild(c); sheetsBox.appendChild(s); return c;
     }
     function cabe(c,A){ return c.scrollHeight<=A.h*0.985; }
+
+    // Enter (ou texto novo) que empurra o fim da folha para fora: leva os ultimos blocos para o inicio da
+    // folha seguinte NA HORA (so move elementos, e rapido). A reorganizacao completa vem depois (timer).
+    function empurraExcesso(corpo){
+      var A=area(), lim=A.h*0.985+1, sel=window.getSelection(), nc=null, no=0, mexeu=false, g=0;
+      if(sel&&sel.rangeCount&&corpo.ownerDocument.contains(sel.anchorNode)){ nc=sel.anchorNode; no=sel.anchorOffset; }
+      var c=corpo;
+      while(c && g++<400 && c.scrollHeight>lim && c.children.length>1){
+        var ult=c.lastElementChild, folha=c.closest('.prtSheet'), prox=folha.nextElementSibling, nb=prox?prox.querySelector('.prtBody'):null;
+        if(!nb) nb=novaFolha();
+        nb.insertBefore(ult,nb.firstChild); mexeu=true;
+        if(c.scrollHeight<=lim){ c=(nb.scrollHeight>lim)?nb:null; }
+      }
+      if(mexeu && nc && nc.isConnected){ try{ var r=document.createRange(); r.setStart(nc,no); r.collapse(true); sel.removeAllRanges(); sel.addRange(r); }catch(_){} }
+      return mexeu;
+    }
 
     // Parte um paragrafo simples (sem elementos dentro) no ponto em que deixa de caber
     function parte(el,c,A){
@@ -3033,6 +3184,52 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
       var ne=el.cloneNode(false); ne.textContent=resto; return ne;
     }
 
+    // Parte um bloco com elementos dentro (ex.: caixa de artigo): tira os filhos do fim ate caber
+    // e devolve uma copia do bloco com o que sobrou (vai para a folha seguinte). Antes, esse tipo de
+    // bloco ficava inteiro na folha e o que passava do fim sumia atras da folha seguinte.
+    function parteBloco(el,c,A,nivel){
+      if(el.nodeType!==1) return null;
+      if(!el.children.length) return parte(el,c,A);
+      if(nivel>6) return null;
+      var movidos=[];
+      while(!cabe(c,A) && el.childNodes.length>1){ var k=el.lastChild; movidos.unshift(k); el.removeChild(k); }
+      if(!cabe(c,A) && el.childNodes.length===1){
+        var so=el.firstChild;
+        if(so.nodeType===3){ var sp=document.createElement('span'); sp.textContent=so.textContent; el.replaceChild(sp,so); so=sp; }
+        var rr=parteBloco(so,c,A,(nivel||0)+1); if(rr) movidos.unshift(rr);
+      }
+      if(!movidos.length) return null;
+      var nb=el.cloneNode(false); if(nb.removeAttribute) nb.removeAttribute('id');
+      movidos.forEach(function(k){ nb.appendChild(k); });
+      return nb;
+    }
+
+    function enche(tmp,A){
+      var c=novaFolha(), nodes=[].slice.call(tmp.childNodes), g=0;
+      while(nodes.length && g++<30000){
+        var n=nodes.shift();
+        if(n.nodeType===3 && !n.textContent.trim()) continue;
+        if(n.nodeType===1 && n.classList && n.classList.contains('prtBreak')){ c.appendChild(n); c=novaFolha(); continue; }
+        c.appendChild(n);
+        if(!cabe(c,A)){
+          if(c.childNodes.length>1){
+            // bloco grande que nao cabe no que sobrou da folha: em vez de empurrar tudo para a folha
+            // seguinte (deixava um buraco), divide o bloco e aproveita o espaco. Blocos pequenos
+            // continuam indo inteiros; so divide se sobrar um pedaco decente (>= ~2,4 cm) na folha.
+            var feito=false;
+            if(n.nodeType===1 && n.getBoundingClientRect().height>A.h*0.12){
+              c.removeChild(n); var tt=n.cloneNode(true); c.appendChild(tt);
+              var rs=parteBloco(tt,c,A,0);
+              if(cabe(c,A) && tt.textContent.trim() && tt.getBoundingClientRect().height>=90){ c=novaFolha(); if(rs) nodes.unshift(rs); feito=true; }
+              else c.removeChild(tt);
+            }
+            if(!feito){ if(n.parentNode===c) c.removeChild(n); nodes.unshift(n); c=novaFolha(); }
+          }
+          else { var r=parteBloco(n,c,A,0); c=novaFolha(); if(r) nodes.unshift(r); }
+        }
+      }
+    }
+
     function desenha(){
       sheetsBox.style.zoom='';
       var A=area(), f=folha();
@@ -3045,17 +3242,7 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
       var tmp=document.createElement('div'); tmp.innerHTML=src.html;
       [].slice.call(tmp.querySelectorAll('script,style,canvas,iframe,.fmtbar,.dhandle,.prtNum,button,select,input,textarea,.rowbtns,.pdfview,.docview,.emptybox,.estback')).forEach(function(n){ n.remove(); });
       [].slice.call(tmp.querySelectorAll('[hidden]')).forEach(function(n){ n.remove(); });
-      var c=novaFolha(), nodes=[].slice.call(tmp.childNodes), g=0;
-      while(nodes.length && g++<30000){
-        var n=nodes.shift();
-        if(n.nodeType===3 && !n.textContent.trim()) continue;
-        if(n.nodeType===1 && n.classList && n.classList.contains('prtBreak')){ c.appendChild(n); c=novaFolha(); continue; }
-        c.appendChild(n);
-        if(!cabe(c,A)){
-          if(c.childNodes.length>1){ c.removeChild(n); nodes.unshift(n); c=novaFolha(); }
-          else { var r=parte(n,c,A); c=novaFolha(); if(r) nodes.unshift(r); }
-        }
-      }
+      enche(tmp,A);
       var fs=[].slice.call(sheetsBox.children);
       if(fs.length>1 && !fs[fs.length-1].textContent.trim()){ fs[fs.length-1].remove(); fs.pop(); }
       fs.forEach(function(s,i){ var d=document.createElement('div'); d.className='prtNum';
@@ -3160,6 +3347,58 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
       toast('Corre\u00e7\u00f5es guardadas no texto');
     }
 
+    // ---- onde cada folha do PDF comecaria, mostrado como linha tracejada na pagina da aula ----
+    // Paginacao da impressao feita fora da tela, sobre o texto da aula. Cada inicio de folha e
+    // localizado no editor pela contagem de caracteres (sem espacos) e imagens ate ali.
+    var EXCL='script,style,canvas,iframe,.fmtbar,.dhandle,.prtNum,.prtLogo,button,select,input,textarea,.rowbtns,.pdfview,.docview,.emptybox,.estback,[hidden]';
+    function contaUn(root,ate){            // percorre texto e imagens de root; ate(un) pode interromper
+      var w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT|NodeFilter.SHOW_ELEMENT,null), n, tot=0;
+      while((n=w.nextNode())){
+        var out=false; for(var p=n.parentNode;p&&p!==root;p=p.parentNode){ if(p.nodeType===1&&p.matches&&p.matches(EXCL)){ out=true; break; } }
+        if(out) continue;
+        if(n.nodeType===3){ var c=(n.nodeValue.match(/\S/g)||[]).length; if(!c) continue; if(ate&&ate(n,c,tot)) return tot; tot+=c; }
+        else if(n.tagName==='IMG'){ if(ate&&ate(n,1,tot)) return tot; tot+=1; }
+      }
+      return tot;
+    }
+    calcQuebras=function(){
+      var CPn=cfgPagina(); cfg.papel=CPn.papel; cfg.margem=CPn.margem; cfg.deitado=CPn.deitado; cfg.logo=lerLogo(); cfg.cabModo=lerCabModo(); cfg.cab=lerCab();
+      var fonte=pega(); cabTit=fonte.title||'';
+      var off=document.createElement('div'); off.style.cssText='position:absolute;left:-30000px;top:0;visibility:hidden;pointer-events:none';
+      document.body.appendChild(off);
+      var salvo=sheetsBox, folhas;
+      try{
+        sheetsBox=off;
+        var tmp=document.createElement('div'); tmp.innerHTML=fonte.html;
+        [].slice.call(tmp.querySelectorAll(EXCL)).forEach(function(n){ n.remove(); });
+        enche(tmp,area());
+        folhas=[].slice.call(off.children);
+      } finally { sheetsBox=salvo; }
+      var cont=[]; folhas.forEach(function(f){ var b=f.querySelector('.prtBody'); cont.push(b?contaUn(b):0); });
+      var tit=0; if(folhas.length){ var b0=folhas[0].querySelector('.prtBody'), h0=b0&&b0.firstElementChild; if(h0&&h0.tagName==='H1') tit=contaUn(h0); }
+      off.remove();
+      var er=editor.getBoundingClientRect(), topo=er.top+editor.clientTop, rg=document.createRange(), ys=[], acum=0;
+      for(var k=0;k<folhas.length-1;k++){
+        acum+=cont[k]; var B=acum-tit; if(B<=0) continue;
+        var achou=null;
+        contaUn(editor,function(n,c,tot){
+          if(tot+c<=B) return false;
+          if(n.nodeType===3){
+            var i=0, vistos=tot; for(;i<n.nodeValue.length;i++){ if(/\S/.test(n.nodeValue.charAt(i))){ if(vistos===B) break; vistos++; } }
+            rg.setStart(n,i); rg.setEnd(n,Math.min(n.nodeValue.length,i+1));
+            var r=rg.getClientRects()[0]||rg.getBoundingClientRect(), pe=n.parentNode, lh=parseFloat(getComputedStyle(pe).lineHeight);
+            var gap=isNaN(lh)?8:Math.max(0,lh-r.height);
+            achou=r.top-topo-gap/2;
+          } else { achou=n.getBoundingClientRect().top-topo-4; }
+          return true;
+        });
+        if(achou==null) return null;
+        if(ys.length&&achou<=ys[ys.length-1]) return null;
+        ys.push(achou);
+      }
+      return ys;
+    };
+
     function pega(){
       var c=activeContent();
       var noteId=(viewNote && !viewNote.hidden)?curNoteId:null;
@@ -3186,6 +3425,9 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
       ov.querySelector('#prtPapel').value=cfg.papel;
       ov.querySelector('#prtMargem').value=String(cfg.margem);
       ov.querySelector('#prtLetra').value=String(cfg.letra);
+      cfg.logo=lerLogo(); ov.querySelector('#prtLogo').value=cfg.logo;
+      cfg.cabModo=lerCabModo(); cfg.cab=lerCab(); cabTit=src.title||'';
+      ov.querySelector('#prtCabModo').value=cfg.cabModo; ov.querySelector('#prtCab').value=cfg.cab; ov.querySelector('#prtCab').style.display=(cfg.cabModo==='livre')?'':'none';
       ov.querySelector('#prtDeitado').checked=cfg.deitado;
       ov.querySelector('#prtZoom').value=String(cfg.zoom);
       ov.querySelector('#prtSave').style.display=src.noteId?'':'none';
