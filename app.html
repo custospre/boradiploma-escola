@@ -2709,45 +2709,48 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
   }
   // Risca uma linha tracejada onde termina cada folha A4, como a quebra de
   // pagina do Word, para saber onde o texto vai cortar na impressao.
-  var _mfT=null, calcQuebras=null;
+  var _mfT=null, _mfV=0, calcQuebras=null, cancelaQuebras=null;
   function marcaFolhas(pg,alt,padTop){
     if(!editor)return;
     var pos0=[]; for(var i=1;i<pg;i++) pos0.push(padTop+i*alt);
     desenhaGuias(pos0);                       // na hora: posicao exata da folha (estimativa)
-    clearTimeout(_mfT);
+    clearTimeout(_mfT); if(cancelaQuebras) cancelaQuebras();   // voltou a digitar: abandona o calculo em andamento
     if(pg<1) return;
-    // logo depois: 1o) usa a mesma paginacao da tela Imprimir (as linhas mostram onde o PDF vai quebrar);
-    // 2o) se isso falhar, encaixa cada linha no espaco ENTRE duas linhas de texto
+    var ver=++_mfV;
+    function atualiza(n){ if(aulaPgs && /· \d+ pág/.test(aulaPgs.textContent)) aulaPgs.textContent=aulaPgs.textContent.replace(/· \d+ pág/,'· '+n+' pág'); }
+    // plano B: encaixa cada linha no espaco ENTRE duas linhas de texto (nao corta frase)
+    function encaixa(){
+      if(pg<2) return;
+      var cs=getComputedStyle(editor), fim=editor.scrollHeight-parseFloat(cs.paddingBottom);
+      var er=editor.getBoundingClientRect(), off=er.top+editor.clientTop, bots=[], rg=document.createRange();
+      var w=document.createTreeWalker(editor,NodeFilter.SHOW_TEXT,null), t;
+      while((t=w.nextNode())){
+        if(!/\S/.test(t.nodeValue)) continue;
+        rg.selectNodeContents(t);
+        var rs=rg.getClientRects(); for(var k=0;k<rs.length;k++){ if(rs[k].height>0) bots.push(rs[k].bottom-off); }
+      }
+      [].forEach.call(editor.querySelectorAll('img,table,hr'),function(el){ var r=el.getBoundingClientRect(); if(r.height>0) bots.push(r.bottom-off); });
+      bots.sort(function(a,b){ return a-b; });
+      var pos=[], y0=padTop, g=0;
+      while(g++<500){
+        var alvo=y0+alt; if(alvo>=fim) break;
+        var melhor=null; for(var j=0;j<bots.length;j++){ if(bots[j]<=alvo && bots[j]>y0+10) melhor=bots[j]; }
+        var y=(melhor!=null)?melhor+1:alvo; pos.push(y); y0=y;
+      }
+      desenhaGuias(pos); atualiza(pos.length+1);
+    }
+    // espera uma pausa na digitacao; depois 1o) usa a mesma paginacao da tela Imprimir (as linhas mostram onde
+    // o PDF vai quebrar), calculada em segundo plano e em fatias; 2o) se falhar, usa o plano B
     _mfT=setTimeout(function(){
-      if(!editor||viewNote.hidden) return;
+      if(!editor||viewNote.hidden||ver!==_mfV) return;
       try{
-        var ysP=null; try{ ysP=calcQuebras?calcQuebras():null; }catch(e){ ysP=null; }
-        if(ysP){
-          desenhaGuias(ysP);
-          if(aulaPgs && /· \d+ pág/.test(aulaPgs.textContent)) aulaPgs.textContent=aulaPgs.textContent.replace(/· \d+ pág/,'· '+(ysP.length+1)+' pág');
-          return;
-        }
-        if(pg<2) return;
-        var cs=getComputedStyle(editor), fim=editor.scrollHeight-parseFloat(cs.paddingBottom);
-        var er=editor.getBoundingClientRect(), off=er.top+editor.clientTop, bots=[], rg=document.createRange();
-        var w=document.createTreeWalker(editor,NodeFilter.SHOW_TEXT,null), t;
-        while((t=w.nextNode())){
-          if(!/\S/.test(t.nodeValue)) continue;
-          rg.selectNodeContents(t);
-          var rs=rg.getClientRects(); for(var k=0;k<rs.length;k++){ if(rs[k].height>0) bots.push(rs[k].bottom-off); }
-        }
-        [].forEach.call(editor.querySelectorAll('img,table,hr'),function(el){ var r=el.getBoundingClientRect(); if(r.height>0) bots.push(r.bottom-off); });
-        bots.sort(function(a,b){ return a-b; });
-        var pos=[], y0=padTop, g=0;
-        while(g++<500){
-          var alvo=y0+alt; if(alvo>=fim) break;
-          var melhor=null; for(var j=0;j<bots.length;j++){ if(bots[j]<=alvo && bots[j]>y0+10) melhor=bots[j]; }
-          var y=(melhor!=null)?melhor+1:alvo; pos.push(y); y0=y;
-        }
-        desenhaGuias(pos);
-        if(aulaPgs && /· \d+ pág/.test(aulaPgs.textContent)) aulaPgs.textContent=aulaPgs.textContent.replace(/· \d+ pág/,'· '+(pos.length+1)+' pág');
+        if(!calcQuebras){ encaixa(); return; }
+        calcQuebras(function(ysP){
+          if(ver!==_mfV||!editor||viewNote.hidden) return;        // o texto mudou enquanto calculava: um novo calculo ja esta agendado
+          try{ if(ysP){ desenhaGuias(ysP); atualiza(ysP.length+1); } else encaixa(); }catch(e){}
+        });
       }catch(e){}
-    },500);
+    },1000);
   }
   function desenhaGuias(lista){
     var imgs=[], poss=[];
@@ -3040,6 +3043,8 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
   (function(){
     if(!printBtn) return;
     var ov=null, sheetsBox=null, info=null, pageStyle=null, src=null;
+    var DOC=document;                              // documento onde as folhas sao criadas e medidas (a pagina ou o iframe de trabalho)
+    var construindo=false, idMontagem=0, editouMontando=false, ctlMontagem=null, ctlGuias=null;
     var PAPEL={a4:{w:210,h:297,n:'A4'}, carta:{w:216,h:279,n:'Carta'}};
     var CPI=cfgPagina();
     var cfg={papel:CPI.papel, margem:CPI.margem, letra:12, deitado:CPI.deitado, zoom:'auto', logo:lerLogo(), cabModo:lerCabModo(), cab:lerCab()};
@@ -3086,7 +3091,7 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
       sheetsBox=ov.querySelector('#prtSheets'); info=ov.querySelector('#prtInfo');
       pageStyle=document.createElement('style'); pageStyle.id='prtPage'; document.head.appendChild(pageStyle);
 
-      ov.querySelector('#prtDo').addEventListener('click',function(){ try{ window.print(); }catch(e){ toast('Nao consegui abrir a impressao'); } });
+      ov.querySelector('#prtDo').addEventListener('click',function(){ if(construindo){ toast('Aguarde: as folhas ainda estão sendo montadas'); return; } try{ window.print(); }catch(e){ toast('Nao consegui abrir a impressao'); } });
       ov.querySelector('#prtBack').addEventListener('click',fecha);
       ov.querySelector('#prtPapel').addEventListener('change',function(){ cfg.papel=this.value; guardaPagina(cfg.papel,null); sincPagina(); refaz(); });
       ov.querySelector('#prtMargem').addEventListener('change',function(){ cfg.margem=+this.value; guardaMargem(cfg.margem); sincPagina(); refaz(); });
@@ -3109,6 +3114,7 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
       try{ if(document.fonts&&document.fonts.ready) document.fonts.ready.then(confere); if(document.fonts&&document.fonts.addEventListener) document.fonts.addEventListener('loadingdone',confere); }catch(_){}
       var tRefaz=null, sujoPrt=false;
       sheetsBox.addEventListener('input',function(e){
+        if(construindo) editouMontando=true;      // digitou enquanto as folhas eram montadas: a montagem recomeca com o texto novo
         clearTimeout(tRefaz);
         // texto que passou do fim da folha (ex.: Enter antes de um titulo no fim da folha) vai para a
         // folha seguinte NA HORA; antes esperava 0,8 s e, enquanto isso, ficava escondido atras da folha de baixo
@@ -3131,14 +3137,14 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
 
     function novaFolha(){
       var f=folha();
-      var s=document.createElement('div'); s.className='prtSheet';
+      var s=DOC.createElement('div'); s.className='prtSheet';
       s.style.width=f.w+'mm'; s.style.height=f.h+'mm'; s.style.padding=cfg.margem+'mm';
-      var c=document.createElement('div'); c.className='prtBody';
+      var c=DOC.createElement('div'); c.className='prtBody';
       c.style.fontSize=cfg.letra+'pt';
       c.setAttribute('contenteditable','true'); c.setAttribute('spellcheck','true'); c.setAttribute('lang','pt-BR');
       var ctx=cabTexto(), temLogo=(cfg.logo!=='nao');
       if(temLogo||ctx){
-        var H=temLogo?LOGO_H:7, lg=document.createElement('div'); lg.className='prtLogo'; lg.setAttribute('contenteditable','false');
+        var H=temLogo?LOGO_H:7, lg=DOC.createElement('div'); lg.className='prtLogo'; lg.setAttribute('contenteditable','false');
         lg.style.cssText='height:'+H+'mm;margin-bottom:'+LOGO_GAP+'mm;display:flex;align-items:center;gap:4mm;box-sizing:border-box;overflow:hidden;user-select:none;line-height:1.2;font-size:9pt;color:#444'
           +(ctx?';border-bottom:.3mm solid #999;padding-bottom:1mm':'');
         var im='<img src="icons/logo.png" alt="BoraDiploma" style="height:'+(ctx?H-2:H)+'mm;width:auto;flex:none">';
@@ -3234,7 +3240,7 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
       while(!cabe(c,A) && el.childNodes.length>1){ var k=el.lastChild; movidos.unshift(k); el.removeChild(k); }
       if(!cabe(c,A) && el.childNodes.length===1){
         var so=el.firstChild;
-        if(so.nodeType===3){ var sp=document.createElement('span'); sp.textContent=so.textContent; el.replaceChild(sp,so); so=sp; }
+        if(so.nodeType===3){ var sp=DOC.createElement('span'); sp.textContent=so.textContent; el.replaceChild(sp,so); so=sp; }
         var rr=parteBloco(so,c,A,(nivel||0)+1); if(rr){ movidos.unshift(rr); cont=true; }
       }
       if(!movidos.length) return null;
@@ -3246,53 +3252,99 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
       return nb;
     }
 
-    function enche(tmp,A){
-      var c=novaFolha(), nodes=[].slice.call(tmp.childNodes), g=0;
-      while(nodes.length && g++<30000){
-        var n=nodes.shift();
-        if(n.nodeType===3 && !n.textContent.trim()) continue;
-        if(n.nodeType===1 && n.classList && n.classList.contains('prtBreak')){ c.appendChild(n); c=novaFolha(); continue; }
-        c.appendChild(n);
-        if(!cabe(c,A)){
-          if(c.childNodes.length>1){
-            // bloco grande que nao cabe no que sobrou da folha: em vez de empurrar tudo para a folha
-            // seguinte (deixava um buraco), divide o bloco e aproveita o espaco. Blocos pequenos
-            // continuam indo inteiros; so divide se sobrar um pedaco decente (>= ~2,4 cm) na folha.
-            var feito=false;
-            if(n.nodeType===1 && n.getBoundingClientRect().height>A.h*0.12){
-              c.removeChild(n); var tt=n.cloneNode(true); c.appendChild(tt);
-              var rs=parteBloco(tt,c,A,0);
-              if(cabe(c,A) && tt.textContent.trim() && tt.getBoundingClientRect().height>=90){ c=novaFolha(); if(rs) nodes.unshift(rs); feito=true; }
-              else c.removeChild(tt);
-            }
-            if(!feito){ if(n.parentNode===c) c.removeChild(n); nodes.unshift(n); c=novaFolha(); }
+    // Uma volta do laco de montagem das folhas (antes era um while unico). Devolve true quando terminou.
+    function encheInit(tmp){ return {c:novaFolha(), nodes:[].slice.call(tmp.childNodes), g:0}; }
+    function encheStep(st,A){
+      if(!(st.nodes.length && st.g++<30000)) return true;
+      var n=st.nodes.shift(), c=st.c;
+      if(n.nodeType===3 && !n.textContent.trim()) return false;
+      if(n.nodeType===1 && n.classList && n.classList.contains('prtBreak')){ c.appendChild(n); st.c=novaFolha(); return false; }
+      c.appendChild(n);
+      if(!cabe(c,A)){
+        if(c.childNodes.length>1){
+          // bloco grande que nao cabe no que sobrou da folha: em vez de empurrar tudo para a folha
+          // seguinte (deixava um buraco), divide o bloco e aproveita o espaco. Blocos pequenos
+          // continuam indo inteiros; so divide se sobrar um pedaco decente (>= ~2,4 cm) na folha.
+          var feito=false;
+          if(n.nodeType===1 && n.getBoundingClientRect().height>A.h*0.12){
+            c.removeChild(n); var tt=n.cloneNode(true); c.appendChild(tt);
+            var rs=parteBloco(tt,c,A,0);
+            if(cabe(c,A) && tt.textContent.trim() && tt.getBoundingClientRect().height>=90){ st.c=novaFolha(); if(rs) st.nodes.unshift(rs); feito=true; }
+            else c.removeChild(tt);
           }
-          else { var r=parteBloco(n,c,A,0); c=novaFolha(); if(r) nodes.unshift(r); }
+          if(!feito){ if(n.parentNode===c) c.removeChild(n); st.nodes.unshift(n); st.c=novaFolha(); }
         }
+        else { var r=parteBloco(n,c,A,0); st.c=novaFolha(); if(r) st.nodes.unshift(r); }
       }
+      return false;
+    }
+    function enche(tmp,A){ var st=encheInit(tmp); while(!encheStep(st,A)); }
+
+    // ---- montagem das folhas num iframe escondido, em fatias ----
+    // Medir o texto dentro desta pagina (que carrega todas as leis) custa ~40 ms por medida; num iframe
+    // isolado custa ~6 ms. E em fatias curtas a tela nao congela enquanto as folhas sao montadas.
+    var pgIf=null;
+    function pgWork(){
+      if(!pgIf||!pgIf.isConnected||!pgIf.contentDocument){
+        pgIf=document.createElement('iframe'); pgIf.setAttribute('aria-hidden','true'); pgIf.tabIndex=-1;
+        pgIf.style.cssText='position:fixed;left:-30000px;top:0;width:1200px;height:1400px;border:0;pointer-events:none';
+        document.body.appendChild(pgIf);
+        var d=pgIf.contentDocument; d.open(); d.write('<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0"></body></html>'); d.close();
+        [].forEach.call(document.querySelectorAll('style'),function(st){ if(st.id==='prtPage') return; try{ d.head.appendChild(d.importNode(st,true)); }catch(_){} });
+        var th=document.documentElement.getAttribute('data-theme'); if(th) d.documentElement.setAttribute('data-theme',th);
+        try{ var cs=getComputedStyle(sheetsBox||document.body); ['letterSpacing','wordSpacing','textRendering','hyphens','wordBreak','fontKerning','fontVariantLigatures','textTransform'].forEach(function(p){ d.body.style[p]=cs[p]; }); }catch(_){}
+      }
+      return {doc:pgIf.contentDocument};
+    }
+    // Monta as folhas de 'html' no iframe. fim(res) recebe {cont} (um div com as folhas, dentro do iframe) ou null se falhar.
+    // fatiaMs = quanto trabalhar por fatia; pausaMs = quanto descansar entre fatias (deixa a tela responder).
+    function paginaFatias(html,fatiaMs,pausaMs,progresso,fim){
+      var w=pgWork(), d=w.doc, cont=d.createElement('div'); d.body.appendChild(cont);
+      var A=area(), st=null, total=1, cancelado=false, s0=null, d0=null;
+      var tmp=d.createElement('div'); tmp.innerHTML=html;
+      [].slice.call(tmp.querySelectorAll(EXCL)).forEach(function(n){ n.remove(); });
+      function entra(){ s0=sheetsBox; d0=DOC; sheetsBox=cont; DOC=d; }
+      function sai(){ sheetsBox=s0; DOC=d0; }
+      function descarta(){ try{ cont.remove(); }catch(_){} }
+      entra(); try{ st=encheInit(tmp); total=Math.max(1,st.nodes.length); } finally { sai(); }
+      function passo(){
+        if(cancelado) return;
+        var t0=performance.now(), acabou=false;
+        entra();
+        try{ while(!(acabou=encheStep(st,A))){ if(performance.now()-t0>fatiaMs) break; } }
+        catch(e){ sai(); cancelado=true; descarta(); if(fim) fim(null); return; }
+        sai();
+        if(!acabou){ if(progresso) progresso(Math.min(1,(total-st.nodes.length)/total)); setTimeout(passo,pausaMs); return; }
+        entra(); try{ garanteFolhas(); }catch(_){} finally { sai(); }
+        fim({cont:cont});
+      }
+      setTimeout(passo,0);
+      return {cancela:function(){ cancelado=true; descarta(); }};
     }
 
-    function desenha(){
-      sheetsBox.style.zoom='';
-      var A=area(), f=folha();
+    function desenha(depois){
+      var meu=++idMontagem, f=folha();
+      construindo=true; editouMontando=false;
       // A margem vai para o @page (e nao para dentro da folha) e, no papel, a
       // folha tem o tamanho da area util. Assim ela cabe mesmo quando o
       // navegador impoe a margem dele, em vez de estourar para a pagina seguinte.
       pageStyle.textContent='@page{size:'+f.w+'mm '+f.h+'mm;margin:'+cfg.margem+'mm}'
         +'@media print{:root.prtmode .prtSheet{width:auto !important;height:'+(f.h-2*cfg.margem-6)+'mm !important;padding:0 !important}}';
-      sheetsBox.innerHTML='';
-      var tmp=document.createElement('div'); tmp.innerHTML=src.html;
-      [].slice.call(tmp.querySelectorAll('script,style,canvas,iframe,.fmtbar,.dhandle,.prtNum,button,select,input,textarea,.rowbtns,.pdfview,.docview,.emptybox,.estback')).forEach(function(n){ n.remove(); });
-      [].slice.call(tmp.querySelectorAll('[hidden]')).forEach(function(n){ n.remove(); });
-      enche(tmp,A);
-      garanteFolhas();
-      var fs=[].slice.call(sheetsBox.children);
-      if(fs.length>1 && !fs[fs.length-1].textContent.trim()){ fs[fs.length-1].remove(); fs.pop(); }
-      fs.forEach(function(s,i){ var d=document.createElement('div'); d.className='prtNum';
-        d.setAttribute('contenteditable','false'); d.textContent=(i+1)+' / '+fs.length; s.appendChild(d); });
-      info.textContent=fs.length+(fs.length===1?' folha':' folhas')+' \u00b7 '+PAPEL[cfg.papel].n+(cfg.deitado?' deitado':'')+' \u00b7 o texto pode ser corrigido aqui';
-      aplicaZoom();
-      ultimoTam=tamanhoTotal();
+      info.textContent='montando…';
+      if(ctlMontagem) ctlMontagem.cancela();
+      ctlMontagem=paginaFatias(src.html,40,0,function(p){ if(meu===idMontagem&&info) info.textContent='montando… '+Math.round(p*100)+'%'; },function(res){
+        if(meu!==idMontagem) { if(res) res.cont.remove(); return; }
+        if(!ov||ov.hidden){ construindo=false; if(res) res.cont.remove(); return; }
+        if(!res){ construindo=false; toast('Não consegui montar as folhas'); return; }
+        if(editouMontando){ res.cont.remove(); construindo=false; refazComCursor(); return; }   // digitou durante a montagem: refaz a partir do que esta na tela (nada se perde)
+        var cont=res.cont, fs=[].slice.call(cont.children);
+        if(fs.length>1 && !fs[fs.length-1].textContent.trim()) fs[fs.length-1].remove();
+        sheetsBox.style.zoom='';
+        sheetsBox.innerHTML=cont.innerHTML; cont.remove();
+        numera(); aplicaZoom(); ultimoTam=tamanhoTotal(); construindo=false;
+        if(depois) depois();
+        setTimeout(function(){ if(!construindo&&ov&&!ov.hidden) garanteFolhas(); },400);   // rede de seguranca na tela de verdade
+      });
     }
     function junta(){
       return [].slice.call(sheetsBox.querySelectorAll('.prtBody')).map(function(b){
@@ -3301,9 +3353,7 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
         return d.innerHTML;
       }).join('');
     }
-    function refaz(){ src.html=junta(); info.textContent='montando\u2026';
-      sheetsBox.innerHTML='<div class="prtWait">Refazendo as folhas\u2026</div>';
-      setTimeout(desenha,40); }
+    function refaz(){ src.html=junta(); desenha(); }
 
     // --- refazer as folhas sem perder o lugar do cursor ---
     function corpos(){ return [].slice.call(sheetsBox.querySelectorAll('.prtBody')); }
@@ -3361,8 +3411,7 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
     function refazComCursor(){
       var off=ondeEstaOCursor();
       src.html=junta();
-      desenha();
-      poeCursor(off);
+      desenha(function(){ poeCursor(off); });
     }
 
     function quebraAqui(){
@@ -3395,7 +3444,7 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
     // localizado no editor pela contagem de caracteres (sem espacos) e imagens ate ali.
     var EXCL='script,style,canvas,iframe,.fmtbar,.dhandle,.prtNum,.prtLogo,button,select,input,textarea,.rowbtns,.pdfview,.docview,.emptybox,.estback,[hidden]';
     function contaUn(root,ate){            // percorre texto e imagens de root; ate(un) pode interromper
-      var w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT|NodeFilter.SHOW_ELEMENT,null), n, tot=0;
+      var w=(root.ownerDocument||document).createTreeWalker(root,NodeFilter.SHOW_TEXT|NodeFilter.SHOW_ELEMENT,null), n, tot=0;
       while((n=w.nextNode())){
         var out=false; for(var p=n.parentNode;p&&p!==root;p=p.parentNode){ if(p.nodeType===1&&p.matches&&p.matches(EXCL)){ out=true; break; } }
         if(out) continue;
@@ -3404,43 +3453,43 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
       }
       return tot;
     }
-    calcQuebras=function(){
+    calcQuebras=function(pronto){
       var CPn=cfgPagina(); cfg.papel=CPn.papel; cfg.margem=CPn.margem; cfg.deitado=CPn.deitado; cfg.logo=lerLogo(); cfg.cabModo=lerCabModo(); cfg.cab=lerCab();
       var fonte=pega(); cabTit=fonte.title||'';
-      var off=document.createElement('div'); off.style.cssText='position:absolute;left:-30000px;top:0;visibility:hidden;pointer-events:none';
-      document.body.appendChild(off);
-      var salvo=sheetsBox, folhas;
-      try{
-        sheetsBox=off;
-        var tmp=document.createElement('div'); tmp.innerHTML=fonte.html;
-        [].slice.call(tmp.querySelectorAll(EXCL)).forEach(function(n){ n.remove(); });
-        enche(tmp,area());
-        folhas=[].slice.call(off.children);
-      } finally { sheetsBox=salvo; }
-      var cont=[]; folhas.forEach(function(f){ var b=f.querySelector('.prtBody'); cont.push(b?contaUn(b):0); });
-      var tit=0; if(folhas.length){ var b0=folhas[0].querySelector('.prtBody'), h0=b0&&b0.firstElementChild; if(h0&&h0.tagName==='H1') tit=contaUn(h0); }
-      off.remove();
-      var er=editor.getBoundingClientRect(), topo=er.top+editor.clientTop, rg=document.createRange(), ys=[], acum=0;
-      for(var k=0;k<folhas.length-1;k++){
-        acum+=cont[k]; var B=acum-tit; if(B<=0) continue;
-        var achou=null;
-        contaUn(editor,function(n,c,tot){
-          if(tot+c<=B) return false;
-          if(n.nodeType===3){
-            var i=0, vistos=tot; for(;i<n.nodeValue.length;i++){ if(/\S/.test(n.nodeValue.charAt(i))){ if(vistos===B) break; vistos++; } }
-            rg.setStart(n,i); rg.setEnd(n,Math.min(n.nodeValue.length,i+1));
-            var r=rg.getClientRects()[0]||rg.getBoundingClientRect(), pe=n.parentNode, lh=parseFloat(getComputedStyle(pe).lineHeight);
-            var gap=isNaN(lh)?8:Math.max(0,lh-r.height);
-            achou=r.top-topo-gap/2;
-          } else { achou=n.getBoundingClientRect().top-topo-4; }
-          return true;
-        });
-        if(achou==null) return null;
-        if(ys.length&&achou<=ys[ys.length-1]) return null;
-        ys.push(achou);
-      }
-      return ys;
+      if(ctlGuias) ctlGuias.cancela();
+      // fatias curtas com pausa: a pagina continua respondendo enquanto isto e calculado em segundo plano
+      ctlGuias=paginaFatias(fonte.html,12,25,null,function(res){
+        if(!res){ pronto(null); return; }
+        var ys=[];
+        try{
+          var folhas=[].slice.call(res.cont.children), cont=[];
+          folhas.forEach(function(f){ var b=f.querySelector('.prtBody'); cont.push(b?contaUn(b):0); });
+          var tit=0; if(folhas.length){ var b0=folhas[0].querySelector('.prtBody'), h0=b0&&b0.firstElementChild; if(h0&&h0.tagName==='H1') tit=contaUn(h0); }
+          res.cont.remove();
+          var er=editor.getBoundingClientRect(), topo=er.top+editor.clientTop, rg=document.createRange(), acum=0;
+          for(var k=0;k<folhas.length-1;k++){
+            acum+=cont[k]; var B=acum-tit; if(B<=0) continue;
+            var achou=null;
+            contaUn(editor,function(n,c,tot){
+              if(tot+c<=B) return false;
+              if(n.nodeType===3){
+                var i=0, vistos=tot; for(;i<n.nodeValue.length;i++){ if(/\S/.test(n.nodeValue.charAt(i))){ if(vistos===B) break; vistos++; } }
+                rg.setStart(n,i); rg.setEnd(n,Math.min(n.nodeValue.length,i+1));
+                var r=rg.getClientRects()[0]||rg.getBoundingClientRect(), pe=n.parentNode, lh=parseFloat(getComputedStyle(pe).lineHeight);
+                var gap=isNaN(lh)?8:Math.max(0,lh-r.height);
+                achou=r.top-topo-gap/2;
+              } else { achou=n.getBoundingClientRect().top-topo-4; }
+              return true;
+            });
+            if(achou==null){ pronto(null); return; }
+            if(ys.length&&achou<=ys[ys.length-1]){ pronto(null); return; }
+            ys.push(achou);
+          }
+        }catch(e){ try{ res.cont.remove(); }catch(_){} pronto(null); return; }
+        pronto(ys);
+      });
     };
+    cancelaQuebras=function(){ if(ctlGuias){ ctlGuias.cancela(); ctlGuias=null; } };
 
     function pega(){
       var c=activeContent();
@@ -3476,7 +3525,7 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
       ov.querySelector('#prtSave').style.display=src.noteId?'':'none';
       sheetsBox.innerHTML='<div class="prtWait">Preparando as folhas\u2026</div>';
       info.textContent='montando\u2026'; ov.scrollTop=0;
-      setTimeout(function(){ desenha(); ov.scrollTop=0; },60);
+      setTimeout(function(){ desenha(function(){ ov.scrollTop=0; }); ov.scrollTop=0; },60);
     });
   })();
 
