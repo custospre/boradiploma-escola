@@ -3033,9 +3033,11 @@ html.rib-tudo body:has(#view-note:not([hidden])) .ribSep{display:block;width:2px
   if(shareBtn) shareBtn.addEventListener('click',function(){
     var c=activeContent(), txt=(c.text||'').trim();
     if(!txt){ toast('Nada para compartilhar nesta página'); return; }
-    if(navigator.share){ navigator.share({title:c.title, text:txt}).catch(function(){}); return; }
     var fb=function(){ var ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); toast('Texto copiado — cole onde quiser (WhatsApp, e-mail…)'); }catch(_){ toast('Não consegui copiar'); } document.body.removeChild(ta); };
-    try{ if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(function(){ toast('Texto copiado — cole onde quiser (WhatsApp, e-mail…)'); },fb); else fb(); }catch(_){ fb(); }
+    var copia=function(){ try{ if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(function(){ toast('Texto copiado — cole onde quiser (WhatsApp, e-mail…)'); },fb); else fb(); }catch(_){ fb(); } };
+    // se o menu de compartilhar falhar (ex.: texto muito grande), copia o texto em vez de nao fazer nada
+    if(navigator.share){ navigator.share({title:c.title, text:txt}).catch(function(e){ if(e&&e.name==='AbortError') return; copia(); }); return; }
+    copia();
   });
   // ---- Impressao: tela de pre-visualizacao, com rolagem, para ajustar o texto
   //      nas folhas antes de mandar para a impressora (itens 1 e 2 da lista).
